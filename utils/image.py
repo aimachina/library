@@ -62,3 +62,11 @@ def resize_image(image, max_dim=1800):
         w = int(w * ratio)
     return image.resize([w, h])
 
+
+def thumbnail(image):
+    w, h = image.size
+    ratio = h / w
+    new_w = max(80, int(w * 0.1))
+    new_h = int(ratio * new_w)
+
+    return image.resize((new_w, new_h))

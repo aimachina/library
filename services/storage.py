@@ -33,10 +33,10 @@ class S3:
             bucket.upload_fileobj(file, key)
         return key
 
-    def upload_bytes(self, key, _bytes):
+    def upload_bytes(self, key, _bytes, extra_args={"ContentType": "binary/octet-stream"}):
         obj = io.BytesIO(_bytes)
         bucket = self._get_bucket()
-        bucket.upload_fileobj(obj, key)
+        bucket.upload_fileobj(obj, key, ExtraArgs=extra_args)
         return key
 
     def download_file(self, key, filename):
@@ -78,7 +78,7 @@ class S3:
     def exists(self, key):
         bucket = self.__client
 
-        try:  # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Object.load
+        try:  # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
             bucket.head_object(Bucket="ticketai-test-storage", Key=key)
 
         except ClientError as client_error:
