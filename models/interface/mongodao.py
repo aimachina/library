@@ -85,3 +85,7 @@ class MongoDAO:
 
     def create_indexes(self, indexes):
         return self._collection.create_indexes(indexes)
+
+    def list_field_is_empty(self, field, filters):
+        filters[field] = {"$not": {"$size": 0}}
+        return self._collection.count_documents(filters) == 0
