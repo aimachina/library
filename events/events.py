@@ -1,13 +1,12 @@
 # pylint: disable=import-error
 # pylint: disable=no-name-in-module
 import time
-from enum import Enum, auto
 from dataclasses import dataclass, field
-
-
-# pylint: enable=import-error
+from enum import Enum, auto
 
 from utils.common import uuid_factory
+
+# pylint: enable=import-error
 
 
 class EventType(Enum):
@@ -139,7 +138,10 @@ class StreamEvent(BaseEvent):
 
 @dataclass
 class FrameEvent(BaseEvent):
-    from PIL import Image
+    try:
+        from PIL import Image
+    except ModuleNotFoundError:
+        Image = object
 
     prefix: str = "FRAME-EVENT"
     frame: Image = field(default_factory=None)
