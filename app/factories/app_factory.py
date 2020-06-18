@@ -7,7 +7,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 
 # pylint: disable=no-name-in-module
-from app.api import create_api
+from app.factories.api_factory import create_api
 from utils.configmanager import ConfigManager
 from utils.common import make_url
 
