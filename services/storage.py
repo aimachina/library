@@ -45,7 +45,7 @@ class S3:
 
     def list_files_in_dir(self, directory):
         bucket = self._get_bucket()
-        return (o.key for o in bucket.objects.filter(Prefix=directory))
+        return (o.key for o in bucket.objects.filter(Prefix=directory) if o.key != directory)
 
     def delete_one(self, key):
         return self.delete_many([key])
