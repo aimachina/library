@@ -12,4 +12,4 @@ for _, consumer in consumers.items():
     consumer_task = getattr(consumer_module, consumer["consumer_task"])
     for _ in range(consumer["workers"]):
         consumer_task.delay(consumer["consumer_group"])
-        print(f'Consumer started for {consumer["consumer_group"]}')
+        print(f"Consumer started for {consumer['consumer_group']}")

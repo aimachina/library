@@ -1,14 +1,14 @@
 import io
 
 import boto3
-
 from utils.configmanager import ConfigManager
 
 
 class S3:
     __bucket = None
 
-    def __init__(self, config=ConfigManager.get_config_value("aws", "s3")):
+    def __init__(self, config=None):
+        config = config or ConfigManager.get_config_value("aws", "s3")
         self.__bucket = self._get_bucket(config)
 
     def _get_bucket(self, config=None):
