@@ -2,12 +2,11 @@
 # pylint: disable=import-error
 # pylint: disable=no-member
 import io
-
 from logging import warning
 
-import boto3
 from botocore.exceptions import ClientError
 
+import boto3
 from utils.configmanager import ConfigManager
 
 
@@ -17,7 +16,8 @@ class S3:
 
     def __init__(self, config=None):
         config = config or ConfigManager.get_config_value("aws", "s3")
-        self.__bucket = self._get_bucket(config)
+        self.__resource = self._get_bucket(config)
+        self.__client = boto3.client("s3")
 
     def _get_bucket(self, config=None):
         if not self.__resource:
@@ -86,9 +86,6 @@ class S3:
                 return False
             else:
                 raise client_error
-
-        except Exception as e:
-            raise e
 
         return True
 
