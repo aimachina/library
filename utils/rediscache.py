@@ -127,6 +127,16 @@ class RedisCache:
                 deserialized[k] = coerce_obj(deserialized[k], types_mapping[k])
         return deserialized
 
+    def expire(self, name, seconds=120):
+        r = self.get_client()
+
+        r.expire(name, seconds)
+
+    def expireat(self, name, timestamp):
+
+        r = self.get_client()
+        r.expireat(name, timestamp)
+
 
 ignore_coercion = [bytes.__name__]
 
@@ -181,4 +191,3 @@ def make_redis(redis_config):
         db=redis_config["db"],
         password=redis_config["password"],
     )
-

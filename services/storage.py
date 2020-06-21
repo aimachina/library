@@ -1,21 +1,29 @@
+# pylint: disable=no-name-in-module
+# pylint: disable=import-error
+# pylint: disable=no-member
 import io
 
+from logging import warning
+
 import boto3
+from botocore.exceptions import ClientError
+
 from utils.configmanager import ConfigManager
 
 
 class S3:
-    __bucket = None
+    __resource = None
+    __client = None
 
     def __init__(self, config=None):
         config = config or ConfigManager.get_config_value("aws", "s3")
         self.__bucket = self._get_bucket(config)
 
     def _get_bucket(self, config=None):
-        if not self.__bucket:
+        if not self.__resource:
             config = config or ConfigManager.get_config_value("aws", "s3")
-            self.__bucket = boto3.resource("s3").Bucket(config["bucket_name"])
-        return self.__bucket
+            self.__resource = boto3.resource("s3").Bucket(config["bucket_name"])
+        return self.__resource
 
     def upload_file(self, file, key):
         bucket = self._get_bucket()
@@ -25,10 +33,10 @@ class S3:
             bucket.upload_fileobj(file, key)
         return key
 
-    def upload_bytes(self, _bytes, key):
+    def upload_bytes(self, key, _bytes, extra_args={"ContentType": "binary/octet-stream"}):
         obj = io.BytesIO(_bytes)
         bucket = self._get_bucket()
-        bucket.upload_fileobj(obj, key)
+        bucket.upload_fileobj(obj, key, ExtraArgs=extra_args)
         return key
 
     def download_file(self, key, filename):
@@ -38,6 +46,11 @@ class S3:
     def download_obj(self, key, handle):
         bucket = self._get_bucket()
         bucket.download_fileobj(key, handle)
+
+    def download_bytes(self, key):
+        stream = io.BytesIO()
+        self.download_obj(key, stream)
+        return stream.getvalue()
 
     def list_files(self, limit=1000):
         bucket = self._get_bucket()
@@ -62,5 +75,22 @@ class S3:
         )
         return deleted, errors
 
+    def exists(self, key):
+        bucket = self.__client
+
+        try:  # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
+            bucket.head_object(Bucket="ticketai-test-storage", Key=key)
+
+        except ClientError as client_error:
+            if client_error.response["Error"]["Code"] == "404":
+                return False
+            else:
+                raise client_error
+
+        except Exception as e:
+            raise e
+
+        return True
+
     def get_bucket(self):
-        return self.__bucket
+        return self.__resource
