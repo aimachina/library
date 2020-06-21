@@ -86,7 +86,17 @@ class EventType(Enum):
 
     # ML
     TEXT_LINES_CLASSIFIED = auto()
+    TEXT_LINES_RECOGNIZED = auto()
     DOCUMENT_IMAGE_CLASSIFIED = auto()
+
+
+class CommandType(Enum):
+
+    GENERIC_COMMAND = auto()
+    # ML Commands
+    CLASSIFY_TEXT_LINES = auto()
+    RECOGNIZE_TEXT_LINES = auto()
+    CLASSIFY_DOCUMENT_IMAGE = auto()
 
 
 @dataclass
@@ -107,6 +117,28 @@ class BaseEvent:
         new_correlations = self.correlations.copy()
         new_correlations.update(correlations)
         return new_correlations
+
+
+@dataclass
+class BaseCommand(BaseEvent):
+    event_type: CommandType = field(default=None)
+    payload: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.timestamp = self.timestamp or time.time()
+        # pylint: disable=no-member
+        self.uuid = self.uuid or uuid_factory(self.prefix or "COMMAND")()
+        self.event_type = self.event_type or CommandType.GENERIC_COMMAND
+
+
+@dataclass
+class MLCommand(BaseCommand):
+    prefix: str = "ML-COMMAND"
+
+    def __init__(self, event_type: CommandType, payload: dict = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event_type = event_type
+        self.payload = payload or {}
 
 
 @dataclass
