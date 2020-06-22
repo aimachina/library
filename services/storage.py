@@ -77,9 +77,10 @@ class S3:
 
     def exists(self, key):
         bucket = self.__client
+        config = ConfigManager.get_config_value("aws", "s3")
 
         try:  # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html#S3.Client.head_object
-            bucket.head_object(Bucket="ticketai-test-storage", Key=key)
+            bucket.head_object(Bucket=config["bucket_name"], Key=key)
 
         except ClientError as client_error:
             if client_error.response["Error"]["Code"] == "404":
