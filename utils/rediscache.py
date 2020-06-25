@@ -184,6 +184,20 @@ def invalidate_key(r, name):
     return _set_name
 
 
+def replace_key(r, name, timeout=30):
+    def _set_name(f):
+        def _replace_key(key, data, *args, **kwargs):
+            key_name = name + "-" + key
+            if r.exists(key_name):
+                r.delete(key_name)
+            f(key, data, *args, **kwargs)
+            r.set(key_name, data, ex=timeout)
+
+        return _replace_key
+
+    return _set_name
+
+
 def make_redis(redis_config):
     return redis.StrictRedis(
         host=redis_config["host"],
