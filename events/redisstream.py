@@ -1,6 +1,7 @@
 # pylint: disable=import-error
 # pylint: disable=no-name-in-module
 import redis
+import os
 import pickle
 import io
 import time
@@ -67,9 +68,9 @@ def maybe_create_consumer_groups(broker, consumer_groups_config):
 
 def decode_item(item):
     stream_name, events = item
-    event_ids, event_dicts = zip(*[(event_id, event_dict) for event_id, event_dict in events])
+    event_ids, event_dicts = zip(*events)
     events = tuple(
-        [bytes_to_event(event_bytes) for event_dict in event_dicts for event_bytes in event_dict.values()]
+        bytes_to_event(event_bytes) for event_dict in event_dicts for event_bytes in event_dict.values()
     )
     return stream_name, event_ids, events
 
@@ -82,22 +83,84 @@ def digest_event(stream_name, event, event_id, registered_handlers, args={}):
         print("Ignoring event: {}".format(event.event_type))
 
 
-def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">"):
+def make_consumer_name(uuid, group_name):
+    if uuid:
+        return group_name + "_consumer-" + str(uuid)
+    return uuid_factory(group_name + "-consumer")()
+
+
+def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries=3):
+    r = RedisStream.get_broker()
+    start_from = "-"
+    discarded = []
+    while messages := r.xpending_range(stream_name, group_name, start_from, "+", 10, consumer_name):
+        for message in messages:
+            if message["times_delivered"] >= max_retries:
+                r.xack(stream_name, group_name, message["message_id"])
+                discarded.append(message["message_id"])
+        start_from = increment_id(messages[-1]["message_id"])
+    return discarded
+
+
+def discard_from_pel_by_stream(group_name, consumer_name, streams):
+    discarded_list = []
+    for stream_name in streams:
+        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name)
+        discarded_list.append((stream_name, discarded))
+    return list(filter(is_really_not_empty, discarded_list))
+
+
+def process_pending_messages(broker, group_name, consumer_name, streams, handlers):
+    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams)
+    if discarded:
+        print(f"Discarded unprocessable events: {discarded} for {consumer_name}")
+
+    while messages_by_stream := pending_messages_by_stream(broker, group_name, consumer_name, streams, 1):
+        for message in messages_by_stream:
+            decode_and_digest(broker, message, group_name, handlers)
+
+
+def is_really_not_empty(item):
+    return len(item[1]) if len(item) > 1 else False
+
+
+def pending_messages_by_stream(broker, group_name, consumer_name, streams, batch_size):
+    streams_dict = {s: "0" for s in streams}
+    messages_by_stream = broker.xreadgroup(group_name, consumer_name, streams_dict, count=batch_size)
+    messages_by_stream = filter(is_really_not_empty, messages_by_stream)
+    return list(messages_by_stream)
+
+
+def new_messages_by_stream(broker, group_name, consumer_name, streams, start_from, batch_size):
+    streams_dict = {s: start_from for s in streams}
+    messages_by_stream = broker.xreadgroup(
+        group_name, consumer_name, streams_dict, count=batch_size, block=1000
+    )
+    return messages_by_stream
+
+
+def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None):
     broker = RedisStream.get_broker()
-    streams_dict = {s: start_from for s in consumer_group_config["streams"]}
     maybe_create_consumer_groups(broker, consumer_group_config)
 
     group_name = consumer_group_config["name"]
-    consumer_name = uuid_factory(group_name + "-consumer")()
+    consumer_name = make_consumer_name(consumer_id, group_name)
     batch_size = consumer_group_config["batch_size"]
+    streams = consumer_group_config["streams"]
 
+    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers)
     while True:
-        item = broker.xreadgroup(group_name, consumer_name, streams_dict, count=batch_size, block=1000)
-        if item:
-            stream_name, event_ids, events = decode_item(item[0])  # TODO: Handle batchsize > 1
-            for event_id, event in zip(event_ids, events):
-                digest_event(stream_name, event, event_id, registered_handlers)
-                broker.xack(stream_name, group_name, event_id)
+        for message in new_messages_by_stream(
+            broker, group_name, consumer_name, streams, start_from, batch_size
+        ):
+            decode_and_digest(broker, message, group_name, registered_handlers)
+
+
+def decode_and_digest(broker, message, group_name, handlers):
+    stream_name, event_ids, events = decode_item(message)
+    for event_id, event in zip(event_ids, events):
+        digest_event(stream_name, event, event_id, handlers)
+        broker.xack(stream_name, group_name, event_id)
 
 
 def retrieve_event(stream_name, event_id):  # TODO: Handle case for retrieving batch of events
