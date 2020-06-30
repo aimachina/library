@@ -1,3 +1,6 @@
+import datetime
+
+
 class MongoDAO:
     def __init__(self, collection):
         self._collection = collection
@@ -26,6 +29,16 @@ class MongoDAO:
 
         else:
             result_set = self._collection.find(filters).skip(skip).limit(limit).sort(sort_by, order)
+        return result_set
+
+    def get_many_uuids_by(self, filters, skip=0, limit=0, sort_by=None, order=-1):
+        if not sort_by:
+            result_set = self._collection.find(filters, {"uuid": 1}).skip(skip).limit(limit)
+
+        else:
+            result_set = (
+                self._collection.find(filters, {"uuid": 1}).skip(skip).limit(limit).sort(sort_by, order)
+            )
         return result_set
 
     def make_filters(self, **kwargs):
@@ -86,6 +99,16 @@ class MongoDAO:
     def create_indexes(self, indexes):
         return self._collection.create_indexes(indexes)
 
+    def make_list_emptyness_filter(self, is_empty=True):
+        if is_empty:
+            return {"$size": 0}
+        return {"$not": {"$size": 0}}
+
     def list_field_is_empty(self, field, filters):
-        filters[field] = {"$not": {"$size": 0}}
+        filters[field] = self.make_list_emptyness_filter()
         return self._collection.count_documents(filters) == 0
+
+    def make_daterange_filter(self, field, start_date=None, end_date=None):
+        end_date = end_date or datetime.datetime.now()
+        start_date = start_date or datetime.datetime.fromtimestamp(0)
+        return {field: {"$gte": start_date, "$lte": end_date}}
