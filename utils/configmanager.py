@@ -27,16 +27,23 @@ class ConfigManager:
         return config
 
 
-def replace_env(d):
-    for k, v in d.items():
-        if type(v) is dict:
-            d[k] = replace_env(v)
-        elif type(v) is str:
-            env_var = find_env(v)
-            if env_var:
-                value = os.environ[env_var[2:-1]]
-                d[k] = v.replace(env_var, value)
-    return d
+def replace_env(item):
+    if isinstance(item, str):
+        if var := find_env(item):
+            item = replace_var(item, var)
+        return item
+    if isinstance(item, (list, tuple)):
+        return [replace_env(i) for i in item]
+    if isinstance(item, dict):
+        keys = replace_env(list(item.keys()))
+        vals = replace_env(list(item.values()))
+        return dict(zip(keys, vals))
+
+
+def replace_var(item, var):
+    prefix, suffix = ("${", "}") if var[1] == "{" else ("$", "")
+    var_name = var.replace(prefix, "").replace(suffix, "")
+    return item.replace(var, os.environ[var_name])
 
 
 def find_env(s):
@@ -45,5 +52,5 @@ def find_env(s):
         return None
     end = s.find("}")
     if end < 0:
-        return None
+        return ""
     return s[start : end + 1]
