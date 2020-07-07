@@ -106,7 +106,7 @@ class MongoDAO:
 
     def list_field_is_empty(self, field, filters):
         filters[field] = self.make_list_emptyness_filter()
-        return self._collection.count_documents(filters) == 0
+        return bool(self._collection.count_documents(filters))
 
     def make_daterange_filter(self, field, start_date=None, end_date=None):
         end_date = end_date or datetime.datetime.now()
