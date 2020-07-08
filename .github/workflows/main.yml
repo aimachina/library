@@ -1,0 +1,52 @@
+name: AIMachina Library
+
+on:
+    push:
+        branches: [master]
+    pull_request:
+        branches: [master]
+
+jobs:
+    test:
+
+        runs-on: self-hosted
+        env:
+            IMAGE: aimachina-library
+            TAG: latest
+        steps:
+
+        - name: Project checkout
+          uses: actions/checkout@v2
+
+        - name: Run unit tests
+          run: |
+              echo $GITHUB_WORKSPACE && \
+              docker run \
+              -v ~$GITHUB_WORKSPACE:/library    \
+              --name=$IMAGE:$TAG                \
+              python:3.8                        \
+              sh -c 'pip install pytest pyyaml && cd /library && PYTHONPATH=/library pytest -v tests/unit'
+
+        - name: Failure Notification
+          if: ${{ failure() }}
+          uses: rtCamp/action-slack-notify@v2.0.2
+          env:
+            SLACK_CHANNEL: aimachina_n_github
+            SLACK_COLOR: '#ba382f'
+            SLACK_ICON: https://66.media.tumblr.com/335adb3dfa9512a77cd67b95103cf9bc/tumblr_of45t8Q37N1voqnhpo3_250.png
+            SLACK_MESSAGE: Some test for aimachina/library have failed
+            SLACK_TITLE: TESTS FAILURE
+            SLACK_USERNAME: github
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+        - name: Success Notification
+          if: ${{ success() }}
+          uses: rtCamp/action-slack-notify@v2.0.2
+          env:
+            SLACK_CHANNEL: aimachina_n_github
+            SLACK_COLOR: '#2bb53c'
+            SLACK_ICON: https://github.githubassets.com/images/modules/logos_page/Octocat.png
+            SLACK_MESSAGE: ticketai-documents image has been updated and uploaded to registry
+            SLACK_TITLE: IMAGE UPDATED
+            SLACK_USERNAME: github
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
