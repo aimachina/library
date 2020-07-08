@@ -41,16 +41,18 @@ def replace_env(item):
 
 
 def replace_var(item, var):
-    prefix, suffix = ("${", "}") if var[1] == "{" else ("$", "")
+    prefix, suffix = ("${", "}") if var.startswith("${") else ("$", "")
     var_name = var.replace(prefix, "").replace(suffix, "")
     return item.replace(var, os.environ[var_name])
 
 
 def find_env(s):
-    start = s.find("${")
+    start = s.find("$")
     if start < 0:
         return None
-    end = s.find("}")
-    if end < 0:
-        return ""
-    return s[start : end + 1]
+    s = s[start:]
+    for c in ["}", " ", ",", "="]:
+        end = s.find(c)
+        if end >= 0:
+            return s[: end + 1]
+    return s

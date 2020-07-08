@@ -43,3 +43,13 @@ def test_replace_vars_in_list_of_dicts():
     config = {"list": [{"": "${TEST_EMPTY}"}, {"some string": "${TEST_STR}"},]}
     config = replace_env(config)
     assert config == {"list": [{"": ""}, {"some string": "some string"},]}
+
+
+def test_load_and_parse_valid_yaml():
+    import yaml
+
+    with open("tests/fixtures/test_config.yml") as f:
+        config = yaml.load(f, yaml.SafeLoader)
+
+    config = replace_env(config)
+    assert "$" not in str(config)
