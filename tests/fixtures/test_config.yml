@@ -1,0 +1,9 @@
+some_list_of_dicts:
+    - dict_key:${TEST_STR}
+      other_key:${TEST_STR}
+
+some_dict: ${TEST_STR}
+some_list:
+    - ${TEST_STR}
+    - some_string=${TEST_STR}
+    - anoter_string=$TEST_STR
