@@ -47,7 +47,7 @@ jobs:
             SLACK_CHANNEL: aimachina_n_github
             SLACK_COLOR: '#2bb53c'
             SLACK_ICON: https://github.githubassets.com/images/modules/logos_page/Octocat.png
-            SLACK_MESSAGE: ticketai-documents image has been updated and uploaded to registry
-            SLACK_TITLE: IMAGE UPDATED
+            SLACK_MESSAGE: AIMachina Library passed all tests.
+            SLACK_TITLE: TESTS PASSED
             SLACK_USERNAME: github
             SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
