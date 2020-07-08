@@ -38,6 +38,7 @@ def replace_env(item):
         keys = replace_env(list(item.keys()))
         vals = replace_env(list(item.values()))
         return dict(zip(keys, vals))
+    return item
 
 
 def replace_var(item, var):

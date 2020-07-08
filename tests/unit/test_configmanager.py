@@ -53,3 +53,9 @@ def test_load_and_parse_valid_yaml():
 
     config = replace_env(config)
     assert "$" not in str(config)
+
+
+def test_ints_and_floats_are_preserved():
+    config = {"some int": 0, "some float": 1.0}
+    new_config = replace_env(config)
+    assert config == new_config
