@@ -48,6 +48,6 @@ jobs:
             SLACK_COLOR: '#2bb53c'
             SLACK_ICON: https://github.githubassets.com/images/modules/logos_page/Octocat.png
             SLACK_MESSAGE: AIMachina Library passed all tests.
-            SLACK_TITLE: TESTS PASSED
+            SLACK_TITLE: ALL TESTS PASSED
             SLACK_USERNAME: github
             SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
