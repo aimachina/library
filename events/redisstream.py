@@ -29,7 +29,7 @@ class RedisStream:
 
 def produce_one(name, event, maxlen=10000):
     r = RedisStream.get_broker()
-    key = event.uuid
+    key = str(event.uuid)
     value = event_to_bytes(event)
     id_ = r.xadd(name, {key: value}, maxlen=maxlen)
     return id_
