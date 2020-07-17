@@ -157,9 +157,14 @@ cache_types = [str, int, bytes, float]
 should_pickle = lambda x: type(x) not in cache_types
 
 
-def redis_cachable(r, name, timeout=120):
+def redis_cachable(r=None, name=None, timeout=120):
+    name = name
+    if not name:
+        raise TypeError("redis_cachable() missing required positional argument: r")
+
     def _set_name(f):
         def _redis_cachable(key, *args, **kwargs):
+            _redis_cachable.r = r or make_redis()
             key_name = name + "-" + key
             if r.exists(key_name):
                 result = r.get(key_name)
@@ -173,9 +178,14 @@ def redis_cachable(r, name, timeout=120):
     return _set_name
 
 
-def invalidate_key(r, name):
+def invalidate_key(r=None, name=None, timeout=120):
+    name = name
+    if not name:
+        raise TypeError("redis_cachable() missing required positional argument: r")
+
     def _set_name(f):
         def _invalidate_key(key, *args, **kwargs):
+            _invalidate_key.r = r or make_redis()
             key_name = name + "-" + key
             r.delete(key_name)
             return f(key, *args, **kwargs)
@@ -185,9 +195,14 @@ def invalidate_key(r, name):
     return _set_name
 
 
-def replace_key(r, name, timeout=30):
+def replace_key(r=None, name=None, timeout=120):
+    name = name
+    if not name:
+        raise TypeError("redis_cachable() missing required positional argument: r")
+
     def _set_name(f):
         def _replace_key(key, data, *args, **kwargs):
+            _replace_key.r = r or make_redis()
             key_name = name + "-" + key
             if r.exists(key_name):
                 r.delete(key_name)
@@ -199,10 +214,8 @@ def replace_key(r, name, timeout=30):
     return _set_name
 
 
-def make_redis(redis_config):
+def make_redis(config=None):
+    config = config or ConfigManager.get_config_value("cache", "redis")
     return redis.StrictRedis(
-        host=redis_config["host"],
-        port=redis_config["port"],
-        db=redis_config["db"],
-        password=redis_config["password"],
+        host=config["host"], port=config["port"], db=config["db"], password=config["password"],
     )
