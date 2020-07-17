@@ -12,7 +12,8 @@ class RedisCache:
     __types_mapping = None
 
     @classmethod
-    def init_client(cls, config=ConfigManager.get_config_value("cache", "redis")):
+    def init_client(cls, config=None):
+        config = config or ConfigManager.get_config_value("cache", "redis")
         cls.__client = cls.__client = redis.StrictRedis(
             host=config["host"], port=config["port"], db=config["db"], password=config["password"]
         )
