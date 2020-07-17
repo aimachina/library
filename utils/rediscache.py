@@ -207,7 +207,7 @@ def replace_key(r=None, name=None, timeout=120):
     def _set_name(f):
         def _replace_key(key, data, *args, **kwargs):
             _replace_key.r = r or _replace_key.r or make_redis()
-           key_name = name + "-" + key
+            key_name = name + "-" + key
             if r.exists(key_name):
                 r.delete(key_name)
             f(key, data, *args, **kwargs)
