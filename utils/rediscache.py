@@ -164,7 +164,7 @@ def redis_cachable(r=None, name=None, timeout=120):
 
     def _set_name(f):
         def _redis_cachable(key, *args, **kwargs):
-            _redis_cachable.r = r or make_redis()
+            _redis_cachable.r = r or _redis_cachable.r or make_redis()
             key_name = name + "-" + key
             if r.exists(key_name):
                 result = r.get(key_name)
@@ -172,6 +172,8 @@ def redis_cachable(r=None, name=None, timeout=120):
                 result = f(key, *args, **kwargs)
                 r.set(key_name, result, ex=timeout)
             return result
+
+        _redis_cachable.r = None
 
         return _redis_cachable
 
@@ -185,10 +187,12 @@ def invalidate_key(r=None, name=None, timeout=120):
 
     def _set_name(f):
         def _invalidate_key(key, *args, **kwargs):
-            _invalidate_key.r = r or make_redis()
+            _invalidate_key.r = r or _invalidate_key.r or make_redis()
             key_name = name + "-" + key
             r.delete(key_name)
             return f(key, *args, **kwargs)
+
+        _invalidate_key.r = None
 
         return _invalidate_key
 
@@ -202,12 +206,14 @@ def replace_key(r=None, name=None, timeout=120):
 
     def _set_name(f):
         def _replace_key(key, data, *args, **kwargs):
-            _replace_key.r = r or make_redis()
+            _replace_key.r = r or _replace_key.r or make_redis()
             key_name = name + "-" + key
             if r.exists(key_name):
                 r.delete(key_name)
             f(key, data, *args, **kwargs)
             r.set(key_name, data, ex=timeout)
+
+        _replace_key.r = None
 
         return _replace_key
 
