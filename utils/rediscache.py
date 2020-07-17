@@ -174,7 +174,6 @@ def redis_cachable(r=None, name=None, timeout=120):
             return result
 
         _redis_cachable.r = None
-
         return _redis_cachable
 
     return _set_name
@@ -193,7 +192,6 @@ def invalidate_key(r=None, name=None, timeout=120):
             return f(key, *args, **kwargs)
 
         _invalidate_key.r = None
-
         return _invalidate_key
 
     return _set_name
@@ -214,7 +212,6 @@ def replace_key(r=None, name=None, timeout=120):
             r.set(key_name, data, ex=timeout)
 
         _replace_key.r = None
-
         return _replace_key
 
     return _set_name
