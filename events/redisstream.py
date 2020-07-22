@@ -6,7 +6,6 @@ import pickle
 import io
 import time
 
-from billiard import Pool, cpu_count  # Celery's multiprocessing fork
 import redis
 
 from utils.common import uuid_factory, extract_attr
@@ -183,6 +182,8 @@ def retrieve_event(stream_name, event_id):  # TODO: Handle case for retrieving b
 
 
 def source_event(stream_name, filters_dict={}, batch_size=128, latest_first=True):
+    from billiard import Pool, cpu_count  # Celery's multiprocessing fork
+
     broker = RedisStream.get_broker()
     next_id = "+" if latest_first else "-"
     i = 0
@@ -239,6 +240,8 @@ def match_event(event, filters_dict):
 def source_item_from_list_in_event(
     stream_name, list_name, field, value, batch_size=1000,
 ):
+    from billiard import Pool, cpu_count  # Celery's multiprocessing fork
+
     broker = RedisStream.get_broker()
     next_id = "+"
     i = 0
@@ -278,4 +281,4 @@ def event_from_dict(x):
     return next(iter(x.values()))
 
 
-parallel_jobs = lambda x: min(x, cpu_count())
+parallel_jobs = lambda x: min(x, 16)
