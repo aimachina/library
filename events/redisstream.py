@@ -81,7 +81,8 @@ def decode_item(item):
 correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
 
 
-def digest_event(stream_name, event, event_id, registered_handlers, args={}):
+def digest_event(stream_name, event, event_id, registered_handlers, args=None):
+    args = args or {}
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
