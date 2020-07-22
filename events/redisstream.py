@@ -1,11 +1,13 @@
 # pylint: disable=import-error
 # pylint: disable=no-name-in-module
-import redis
+from contextvars import ContextVar, copy_context
 import os
 import pickle
 import io
 import time
+
 from billiard import Pool, cpu_count  # Celery's multiprocessing fork
+import redis
 
 from utils.common import uuid_factory, extract_attr
 from utils.configmanager import ConfigManager
@@ -30,6 +32,7 @@ class RedisStream:
 def produce_one(name, event, maxlen=10000):
     r = RedisStream.get_broker()
     key = str(event.uuid)
+    event.correlations = correlations_context.get()
     value = event_to_bytes(event)
     id_ = r.xadd(name, {key: value}, maxlen=maxlen)
     return id_
@@ -75,9 +78,13 @@ def decode_item(item):
     return stream_name, event_ids, events
 
 
+correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
+
+
 def digest_event(stream_name, event, event_id, registered_handlers, args={}):
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
+        correlations_context.set(event.update_correlations({stream_name: event_id}))
         handler(stream_name, event, event_id, **args)
     else:
         print("Ignoring event: {}".format(event.event_type))
@@ -159,7 +166,8 @@ def start_redis_consumer(consumer_group_config, registered_handlers, start_from=
 def decode_and_digest(broker, message, group_name, handlers):
     stream_name, event_ids, events = decode_item(message)
     for event_id, event in zip(event_ids, events):
-        digest_event(stream_name, event, event_id, handlers)
+        ctx = copy_context()
+        ctx.run(digest_event, stream_name, event, event_id, handlers)
         broker.xack(stream_name, group_name, event_id)
 
 
