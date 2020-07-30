@@ -89,6 +89,9 @@ class EventType(Enum):
     TEXT_LINES_RECOGNIZED = auto()
     DOCUMENT_IMAGE_CLASSIFIED = auto()
 
+    # Redactor
+    LINES_REDACTED = auto()
+
 
 class CommandType(Enum):
 
@@ -97,6 +100,7 @@ class CommandType(Enum):
     CLASSIFY_TEXT_LINES = auto()
     RECOGNIZE_TEXT_LINES = auto()
     CLASSIFY_DOCUMENT_IMAGE = auto()
+    REDACT_LINES = auto()
 
 
 @dataclass
@@ -134,6 +138,16 @@ class BaseCommand(BaseEvent):
 @dataclass
 class MLCommand(BaseCommand):
     prefix: str = "ML-COMMAND"
+
+    def __init__(self, event_type: CommandType, payload: dict = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.event_type = event_type
+        self.payload = payload or {}
+
+
+@dataclass
+class RedactorCommand(BaseCommand):
+    prefix: str = "REDACTOR-COMMAND"
 
     def __init__(self, event_type: CommandType, payload: dict = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -369,3 +383,20 @@ class MLEvent(BaseEvent):
         self.data = data or {}
         self.user_id = user_id
         self.event_type = event_type or EventType.TEXT_LINES_CLASSIFIED
+
+
+@dataclass
+class RedactorEvent(BaseEvent):
+    prefix: str = "REDACTOR-EVENT"
+    user_id: str = field(default="")
+    data: dict = field(default_factory=dict)
+    source_id: str = field(default="")
+
+    def __init__(
+        self, user_id: str, source_id: str, data: dict = None, event_type: EventType = None, *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.source_id = source_id
+        self.data = data or {}
+        self.user_id = user_id
+        self.event_type = event_type or EventType.LINES_REDACTED
