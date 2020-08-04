@@ -101,6 +101,7 @@ class CommandType(Enum):
     RECOGNIZE_TEXT_LINES = auto()
     CLASSIFY_DOCUMENT_IMAGE = auto()
     REDACT_LINES = auto()
+    EXTRACT_TEXT = auto()
 
 
 @dataclass
