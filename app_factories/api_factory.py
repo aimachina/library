@@ -8,6 +8,13 @@ from flask_restx import Api
 from utils.configmanager import ConfigManager
 from app import resources
 
+authorizations = {
+    'apikey': {
+        'type': 'apiKey',
+        'in': 'header',
+        'name': 'X-API-KEY'
+    },
+}
 
 def create_api(api_config):
     api = Api(
@@ -15,7 +22,9 @@ def create_api(api_config):
         title=api_config["title"],
         version=api_config["version"],
         catch_all_404s=True,
-        doc=api_config['doc_prefix']
+        doc=api_config['doc_prefix'],
+        authorizations=authorizations,
+        security='apikey'
     )
 
     for module_name in api_config["resources"]:
