@@ -8,7 +8,7 @@ apis = ConfigManager.get_config_value('apis')
 hydra_config = conf['oauth2']['hydra']
 oauth2_client = conf['oauth2']['client']
 
-API_KEY = apis['tiketai']['apikey']
+API_KEY = apis['ticketai']['apikey']
 
 HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
