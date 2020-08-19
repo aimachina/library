@@ -64,7 +64,7 @@ def require_auth(request, auth_type='oauth2'):
             if apikey == None:
                 return Response(None, status=403)
 
-            if apikey != API_KEY
+            if apikey != API_KEY:
                 return Response(None, status=403)
             return fn(*args, **kwargs)
 
