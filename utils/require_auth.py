@@ -68,7 +68,7 @@ def require_auth(request, auth_type='oauth2'):
                 return Response(None, status=403)
             return fn(*args, **kwargs)
 
-        if auth_type == 'oauth2'
+        if auth_type == 'oauth2':
             return _validate_oauth2
         else:
             return _validate_apikey
