@@ -8,7 +8,7 @@ apis = ConfigManager.get_config_value('apis')
 hydra_config = conf['oauth2']['hydra']
 oauth2_client = conf['oauth2']['client']
 
-api_key = apis['tiketai']['apikey']
+API_KEY = apis['tiketai']['apikey']
 
 HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
@@ -60,14 +60,13 @@ def require_auth(request, auth_type='oauth2'):
             return fn(*args, claims=claims, **kwargs)
 
         def _validate_apikey(*args, **kwargs):
-            if auth_type == 'apikey':
-                apikey = request.headers.get('X-API-KEY')
-                if apikey == None:
-                    return Response(None, status=403)
+            apikey = request.headers.get('X-API-KEY')
+            if apikey == None:
+                return Response(None, status=403)
 
-                if apikey != api_key
-                    return Response(None, status=403)
-                return fn(*args, **kwargs)
+            if apikey != API_KEY
+                return Response(None, status=403)
+            return fn(*args, **kwargs)
 
         if auth_type == 'oauth2'
             return _validate_oauth2
