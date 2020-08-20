@@ -2,6 +2,7 @@ from json import dumps
 from requests import post
 from flask import Response
 from utils.configmanager import ConfigManager
+from utils.rediscache import redis_cachable
 
 conf = ConfigManager.get_config_value('ory')
 apis = ConfigManager.get_config_value('apis')
@@ -14,8 +15,8 @@ HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
 
-
-def __exchange_code(code):
+@redis_cachable(None, 'oauth2')
+def __exchange_code(key, code):
     data = {
         'grant_type':'authorization_code',
         'code': code,
