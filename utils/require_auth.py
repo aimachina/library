@@ -15,8 +15,8 @@ HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
 
-@redis_cachable(None, 'oauth2')
-def __exchange_code(key, code):
+@redis_cachable
+def __exchange_code(code):
     data = {
         'grant_type':'authorization_code',
         'code': code,
