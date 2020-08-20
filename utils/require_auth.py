@@ -16,8 +16,8 @@ HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
 
 def http_json_response_cache(r=None):
+    r = r or make_redis()
     def _wrapper(f):
-        r = r or make_redis()
         def __wrapper(code, *args, **kwargs):
             if r.exists(code):
                 cached = r.get(code).decode('utf-8')
@@ -34,7 +34,7 @@ def http_json_response_cache(r=None):
         return __wrapper
     return _wrapper
 
-@http_json_response_cache
+@http_json_response_cache()
 def __exchange_code(code):
     data = {
         'grant_type':'authorization_code',
