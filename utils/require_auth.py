@@ -23,11 +23,11 @@ def http_json_response_cache(r=None):
                 cached = r.get(code).decode('utf-8')
                 status, data = cached.split('\n')
                 status = int(status)
-                data = json.loads(data)
+                data = loads(data)
             else:
                 status, data = f(code, *args, **kwargs)
                 if status == 200:
-                    serialized = f'{status}\n{json.dumps(data)}'
+                    serialized = f'{status}\n{dumps(data)}'
                     expires = int(data.get('expires_in', 3599))
                     r.set(code, serialized, ex=expires)
             return status, data
