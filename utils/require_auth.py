@@ -15,7 +15,7 @@ HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
 
-def http_json_response_cache(r=None)
+def http_json_response_cache(r=None):
     def _wrapper(f):
         r = r or make_redis()
         def __wrapper(code, *args, **kwargs):
