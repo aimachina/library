@@ -180,7 +180,8 @@ def redis_cachable(r=None, name=None, timeout=120):
 
 def http_json_response_cache(f):
     def _wrapper(code, *args, **kwargs):
-        r = _wrapper.r or make_redis()
+        _wrapper.r = _wrapper.r or make_redis()
+        r = _wrapper.r
         if r.exists(code):
             status, data = r.get(code).split('\n')
             status = int(status)
