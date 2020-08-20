@@ -2,7 +2,7 @@ from json import dumps, loads
 from requests import post
 from flask import Response
 from utils.configmanager import ConfigManager
-from utils.rediscache import http_json_response_cache
+from utils.rediscache import make_redis
 
 conf = ConfigManager.get_config_value('ory')
 apis = ConfigManager.get_config_value('apis')
@@ -14,6 +14,25 @@ API_KEY = apis['ticketai']['apikey']
 HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
+
+def http_json_response_cache(r=None)
+    def _wrapper(f):
+        r = r or make_redis()
+        def __wrapper(code, *args, **kwargs):
+            if r.exists(code):
+                cached = r.get(code).decode('utf-8')
+                status, data = cached.split('\n')
+                status = int(status)
+                data = json.loads(data)
+            else:
+                status, data = f(code, *args, **kwargs)
+                if status == 200:
+                    serialized = f'{status}\n{json.dumps(data)}'
+                    expires = int(data.get('expires_in', 3599))
+                    r.set(code, serialized, ex=expires)
+            return status, data
+        return __wrapper
+    return _wrapper
 
 @http_json_response_cache
 def __exchange_code(code):
