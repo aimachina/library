@@ -179,9 +179,8 @@ def redis_cachable(r=None, name=None, timeout=120):
     return _set_name
 
 def http_json_response_cache(f):
+    r = make_redis()
     def _wrapper(code, *args, **kwargs):
-        _wrapper.r = _wrapper.r or make_redis()
-        r = _wrapper.r
         if r.exists(code):
             status, data = r.get(code).split('\n')
             status = int(status)
@@ -192,7 +191,6 @@ def http_json_response_cache(f):
                 serialized = f'{status}\n{json.dumps(data)}'
                 r.set(code, serialized, ex=120)
         return status, data
-    _wrapper.r = r
     return _wrapper
 
 def invalidate_key(r=None, name=None, timeout=120):
