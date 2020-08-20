@@ -182,14 +182,16 @@ def http_json_response_cache(f):
     r = make_redis()
     def _wrapper(code, *args, **kwargs):
         if r.exists(code):
-            status, data = r.get(code).split('\n')
+            cached = r.get(code).decode('utf-8')
+            status, data = cached.split('\n')
             status = int(status)
             data = json.loads(data)
         else:
             status, data = f(code, *args, **kwargs)
             if status == 200:
                 serialized = f'{status}\n{json.dumps(data)}'
-                r.set(code, serialized, ex=120)
+                expires = int(data.get('expires_in', 3599))
+                r.set(code, serialized, ex=expires)
         return status, data
     return _wrapper
 
