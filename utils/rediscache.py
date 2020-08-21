@@ -178,7 +178,6 @@ def redis_cachable(r=None, name=None, timeout=120):
 
     return _set_name
 
-
 def invalidate_key(r=None, name=None, timeout=120):
     if not name:
         raise TypeError("redis_cachable() missing required positional argument: r")
