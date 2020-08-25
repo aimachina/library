@@ -1,5 +1,5 @@
 from json import dumps, loads
-from requests import post
+from requests import post, get
 from flask import Response
 from utils.configmanager import ConfigManager
 from utils.rediscache import make_redis
@@ -47,11 +47,18 @@ def __exchange_code(code):
 
 
 def __token_introspection(access_token):
-        data = {
-            'token': access_token
-        }
-        response = post(f'{HYDRA_HOST}:{HYDRA_ADMIN_PORT}/oauth2/introspect', data=data, verify=False)
-        return response.status_code, response.json()
+    data = {
+        'token': access_token
+    }
+    response = post(f'{HYDRA_HOST}:{HYDRA_ADMIN_PORT}/oauth2/introspect', data=data, verify=False)
+    return response.status_code, response.json()
+
+def __userinfo(access_token):
+    headers = {
+        'Authorization': f'Bearer {access_token}'
+    }
+    response = get(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/userinfo', headers=headers, verify=False)
+    return response.status_code, response.json()
 
 def require_auth(request, auth_type='oauth2'):
     def _wrapper(fn):
@@ -60,15 +67,16 @@ def require_auth(request, auth_type='oauth2'):
             if authorization == None:
                 return Response(None, status=403)
 
-            auth_type, code = [h.strip() for h in authorization.split()]
-            if auth_type != 'Bearer':
+            authorization_type, code = [h.strip() for h in authorization.split()]
+            if authorization_type != 'Bearer':
                 return Response(None, status=403)
 
             status, data = __exchange_code(code)
             if status != 200:
                 return Response(dumps(data), status=400, mimetype='application/json')
 
-            status, data =  __token_introspection(data.get('access_token'))
+            access_token = data.get('access_token')
+            status, data =  __token_introspection(access_token)
             if status != 200:
                 return Response(dumps(data), status=400, mimetype='application/json')
 
@@ -77,6 +85,10 @@ def require_auth(request, auth_type='oauth2'):
                 'sub': data['sub'],
                 'claims': data['ext']['claims']
             }
+
+            if auth_type = 'oauth2+openid':
+                userinfo = __userinfo(access_token)
+                return fn(*args, claims=claims, userinfo=userinfo **kwargs)
             return fn(*args, claims=claims, **kwargs)
 
         def _validate_apikey(*args, **kwargs):
