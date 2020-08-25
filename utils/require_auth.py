@@ -87,8 +87,8 @@ def require_auth(request, auth_type='oauth2'):
             }
 
             if auth_type == 'oauth2+openid':
-                userinfo = __userinfo(access_token)
-                return fn(*args, claims=claims, userinfo=userinfo **kwargs)
+                status, userinfo = __userinfo(access_token)
+                return fn(*args, claims=claims, userinfo=userinfo, **kwargs)
             return fn(*args, claims=claims, **kwargs)
 
         def _validate_apikey(*args, **kwargs):
@@ -100,7 +100,7 @@ def require_auth(request, auth_type='oauth2'):
                 return Response(None, status=403)
             return fn(*args, **kwargs)
 
-        if auth_type == 'oauth2':
+        if auth_type == 'oauth2' or auth_type == 'oauth2+openid':
             return _validate_oauth2
         else:
             return _validate_apikey
