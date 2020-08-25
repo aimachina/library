@@ -86,7 +86,7 @@ def require_auth(request, auth_type='oauth2'):
                 'claims': data['ext']['claims']
             }
 
-            if auth_type = 'oauth2+openid':
+            if auth_type == 'oauth2+openid':
                 userinfo = __userinfo(access_token)
                 return fn(*args, claims=claims, userinfo=userinfo **kwargs)
             return fn(*args, claims=claims, **kwargs)
