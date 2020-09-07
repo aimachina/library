@@ -9,7 +9,16 @@ def make_es(retries=30, config=None):
     config = config or ConfigManager.get_config_value("database", "elasticsearch")
     while retries != 0:
         try:
-            es = Elasticsearch(config["hosts"])
+            if config['ochestrator'] == 'kubernetes':
+                conf = config['kubernetes']
+                es = Elasticsearch(
+                    conf["hosts"],
+                    scheme="https",
+                    verify_certs=False,
+                    http_auth=(conf['user'], conf['secret'])
+                    )
+            else:
+                es = Elasticsearch(config['compose']["hosts"])
             init_es(es)
             return es
         except:
