@@ -83,7 +83,9 @@ def require_auth(request, auth_type='oauth2'):
             claims = {
                 'active': data['active'],
                 'sub': data['sub'],
-                'claims': data['ext']['claims']
+                'claims': data['ext']['claims'],
+                'branch_id': data['ext']['bra'],
+                'organization_id': data['ext']['org']
             }
 
             if auth_type == 'oauth2+openid':
