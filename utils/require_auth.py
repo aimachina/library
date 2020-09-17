@@ -80,7 +80,7 @@ def require_auth(request, auth_type='oauth2'):
             if status != 200:
                 return Response(dumps(data), status=400, mimetype='application/json')
 
-            claims = {
+            user_access = {
                 'active': data['active'],
                 'sub': data['sub'],
                 'claims': data['ext']['claims'],
@@ -90,8 +90,8 @@ def require_auth(request, auth_type='oauth2'):
 
             if auth_type == 'oauth2+openid':
                 status, userinfo = __userinfo(access_token)
-                return fn(*args, claims=claims, userinfo=userinfo, **kwargs)
-            return fn(*args, claims=claims, **kwargs)
+                return fn(*args, user_access=user_access, userinfo=userinfo, **kwargs)
+            return fn(*args, user_access=user_access, **kwargs)
 
         def _validate_apikey(*args, **kwargs):
             apikey = request.headers.get('X-API-KEY')
