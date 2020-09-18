@@ -87,7 +87,6 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
                 return Response(dumps(data), status=400, mimetype='application/json')
 
             user_access = {
-                'active': data['active'],
                 'sub': data['sub'],
                 'claims': data['ext']['claims'],
                 'branch_id': data['ext']['bra'],
