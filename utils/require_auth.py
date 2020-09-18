@@ -1,3 +1,4 @@
+from re import compile
 from json import dumps, loads
 from requests import post, get
 from flask import Response
@@ -60,7 +61,12 @@ def __userinfo(access_token):
     response = get(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/userinfo', headers=headers, verify=False)
     return response.status_code, response.json()
 
-def require_auth(request, auth_type='oauth2'):
+def __validate_scope(claims, required_scope):
+    matcher = compile(f'^{required_scope}.*')
+    matched = map(matcher.match, claims)
+    return any(matched)
+
+def require_auth(request, auth_type='oauth2', required_scope: str = None):
     def _wrapper(fn):
         def _validate_oauth2(*args, **kwargs):
             authorization = request.headers.get('Authorization')
@@ -87,6 +93,11 @@ def require_auth(request, auth_type='oauth2'):
                 'branch_id': data['ext']['bra'],
                 'organization_id': data['ext']['org']
             }
+
+            if required_scope:
+                access = __validate_scope(user_access[claims], required_scope)
+                if not access:
+                    return Response(None, status=403)
 
             if auth_type == 'oauth2+openid':
                 status, userinfo = __userinfo(access_token)
