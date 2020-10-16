@@ -6,11 +6,8 @@ from utils.configmanager import ConfigManager
 from utils.rediscache import make_redis
 
 conf = ConfigManager.get_config_value('ory')
-apis = ConfigManager.get_config_value('apis')
 hydra_config = conf['oauth2']['hydra']
 oauth2_client = conf['oauth2']['client']
-
-API_KEY = apis['ticketai']['apikey']
 
 HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
@@ -73,9 +70,14 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             if authorization == None:
                 return Response(None, status=403)
 
-            authorization_type, code = [h.strip() for h in authorization.split()]
+            auth = [h.strip() for h in authorization.split()]
+
+            if len(auth) < 2:
+                return Response(None, status=401)
+
+            authorization_type, code = auth
             if authorization_type != 'Bearer':
-                return Response(None, status=403)
+                return Response(None, status=401)
 
             status, data = __exchange_code(code)
             if status != 200:
@@ -103,17 +105,5 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
                 return fn(*args, user_access=user_access, userinfo=userinfo, **kwargs)
             return fn(*args, user_access=user_access, **kwargs)
 
-        def _validate_apikey(*args, **kwargs):
-            apikey = request.headers.get('X-API-KEY')
-            if apikey == None:
-                return Response(None, status=403)
-
-            if apikey != API_KEY:
-                return Response(None, status=403)
-            return fn(*args, **kwargs)
-
-        if auth_type == 'oauth2' or auth_type == 'oauth2+openid':
-            return _validate_oauth2
-        else:
-            return _validate_apikey
+        return _validate_oauth2
     return _wrapper

@@ -8,12 +8,25 @@ from flask_restx import Api
 from utils.configmanager import ConfigManager
 from app import resources
 
+config = ConfigManager.get_config_value('ory') 
+OAUTH2_HOST = config['oauth2_host']
+
 authorizations = {
     'apikey': {
         'type': 'apiKey',
         'in': 'header',
-        'name': 'X-API-KEY'
+        'name': 'Authorization'
     },
+    'oauth2': {
+        'type': 'oauth2',
+        'flow': 'accessCode',
+        'tokenUrl': f'{OAUTH2_HOST}/oauth2/auth',
+        'authorizationUrl': f'{OAUTH2_HOST}/oauth2/auth',
+        'scopes': {
+            'openid': 'Request token_id',
+            'offline': 'Request refresh_token',
+        }
+    }
 }
 
 def create_api(api_config):
