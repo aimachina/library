@@ -13,37 +13,6 @@ HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
 
-def http_json_response_cache(r=None):
-    r = r or make_redis()
-    def _wrapper(f):
-        def __wrapper(code, *args, **kwargs):
-            if r.exists(code):
-                cached = r.get(code).decode('utf-8')
-                status, data = cached.split('\n')
-                status = int(status)
-                data = loads(data)
-            else:
-                status, data = f(code, *args, **kwargs)
-                if status == 200:
-                    serialized = f'{status}\n{dumps(data)}'
-                    expires = int(data.get('expires_in', 3599))
-                    r.set(code, serialized, ex=expires)
-            return status, data
-        return __wrapper
-    return _wrapper
-
-@http_json_response_cache()
-def __exchange_code(code):
-    data = {
-        'grant_type':'authorization_code',
-        'code': code,
-        'redirect_uri': oauth2_client['redirect_uri'],
-        'client_id': oauth2_client['client_id']
-    }
-    response = post(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/oauth2/token', data=data, verify=False)
-    return response.status_code, response.json()
-
-
 def __token_introspection(access_token):
     data = {
         'token': access_token
@@ -75,15 +44,10 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             if len(auth) < 2:
                 return Response(None, status=401)
 
-            authorization_type, code = auth
+            authorization_type, access_token = auth
             if authorization_type != 'Bearer':
                 return Response(None, status=401)
 
-            status, data = __exchange_code(code)
-            if status != 200:
-                return Response(dumps(data), status=400, mimetype='application/json')
-
-            access_token = data.get('access_token')
             status, data =  __token_introspection(access_token)
             if status != 200:
                 return Response(dumps(data), status=400, mimetype='application/json')
