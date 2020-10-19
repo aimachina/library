@@ -20,7 +20,7 @@ authorizations = {
     'oauth2': {
         'type': 'oauth2',
         'flow': 'accessCode',
-        'tokenUrl': f'{OAUTH2_HOST}/oauth2/auth',
+        'tokenUrl': f'{OAUTH2_HOST}/oauth2/token',
         'authorizationUrl': f'{OAUTH2_HOST}/oauth2/auth',
         'scopes': {
             'openid': 'Request token_id',
