@@ -25,6 +25,10 @@ authorizations = {
         'scopes': {
             'openid': 'Request token_id',
             'offline': 'Request refresh_token',
+            'documents.read': 'Request access to read documents',
+            'documents.upload': 'Request access to upload documents',
+            'documents.update': 'Request access to update documents',
+            'documents.delete': 'Request access to delete documents'
         }
     }
 }
