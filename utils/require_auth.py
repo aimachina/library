@@ -27,10 +27,8 @@ def __userinfo(access_token):
     response = get(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/userinfo', headers=headers, verify=False)
     return response.status_code, response.json()
 
-def __validate_scope(claims, required_scope):
-    matcher = compile(f'^{required_scope}.*')
-    matched = map(matcher.match, claims)
-    return any(matched)
+def __validate_scope(scopes, required_scope):
+    return required_scope in scopes
 
 def require_auth(request, auth_type='oauth2', required_scope: str = None):
     def _wrapper(fn):
@@ -60,7 +58,7 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             }
 
             if required_scope:
-                access = __validate_scope(user_access[claims], required_scope)
+                access = __validate_scope(data.get('scope'), required_scope)
                 if not access:
                     return Response(None, status=403)
 
