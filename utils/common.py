@@ -2,6 +2,7 @@
 from http.client import responses
 import uuid
 from functools import wraps
+from Typing import Callable
 
 
 def make_url(db_config, include_db=True):
@@ -40,7 +41,7 @@ def _make_response(data):
     return resp
 
 
-def uuid_factory(name):
+def uuid_factory(name: str) -> Callable[[], str]:
     prefix = name + "-"
     return lambda: prefix + str(uuid.uuid4())
 
