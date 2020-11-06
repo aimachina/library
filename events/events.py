@@ -125,7 +125,7 @@ class BaseEvent:
         return new_correlations
 
     def update_causations(self, new_causation: dict) -> list:
-        updated_causations = self.causations[:]
+        updated_causations = getattr(self, "causations", []).copy()
         updated_causations.append(new_causation)
         return updated_causations
 
