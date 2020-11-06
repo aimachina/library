@@ -3,6 +3,7 @@
 import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import Optional
 
 from utils.common import uuid_factory
 
@@ -106,22 +107,27 @@ class CommandType(Enum):
 
 @dataclass
 class BaseEvent:
-    timestamp: float = field(default=None)
-    uuid: str = field(default=None)
-    event_type: EventType = field(default=None)
+    timestamp: float = field(default=0.0)
+    uuid: str = field(default="")
+    event_type: Optional[EventType] = field(default=None)
     correlations: dict = field(default_factory=dict)
+    causations: list = field(default_factory=list)
+    prefix: str = field(default="")
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.timestamp = self.timestamp or time.time()
-        # pylint: disable=no-member
         self.uuid = self.uuid or uuid_factory(self.prefix or "EVENT")()
         self.event_type = self.event_type or EventType.GENERIC_EVENT
 
-    def update_correlations(self, correlations):
-        # pylint: disable=no-member
+    def update_correlations(self, correlations: dict) -> dict:
         new_correlations = self.correlations.copy()
         new_correlations.update(correlations)
         return new_correlations
+
+    def update_causations(self, new_causation: dict) -> list:
+        updated_causations = getattr(self, "causations", []).copy()
+        updated_causations.append(new_causation)
+        return updated_causations
 
 
 @dataclass
