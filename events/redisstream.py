@@ -1,14 +1,9 @@
-# pylint: disable=import-error
-# pylint: disable=no-name-in-module
-from contextvars import ContextVar, copy_context
-import os
 import pickle
-import io
-import time
+from contextvars import ContextVar, copy_context
 
-import redis
-
-from utils.common import uuid_factory, extract_attr
+from redis import StrictRedis
+from Typing import Any
+from utils.common import extract_attr, uuid_factory
 from utils.configmanager import ConfigManager
 
 
@@ -16,10 +11,10 @@ class RedisStream:
     __broker = None
 
     @classmethod
-    def get_broker(cls):
+    def get_broker(cls) -> StrictRedis:
         if not cls.__broker:
             redis_config = ConfigManager.get_config_value("events-stream", "broker")
-            cls.__broker = redis.StrictRedis(
+            cls.__broker = StrictRedis(
                 host=redis_config["host"],
                 port=redis_config["port"],
                 db=redis_config["db"],
@@ -28,20 +23,21 @@ class RedisStream:
         return cls.__broker
 
 
-def produce_one(name, event, maxlen=10000):
-    r = RedisStream.get_broker()
+def produce_one(name: str, event: Any, maxlen: int = 10000) -> str:
+    broker = RedisStream.get_broker()
     key = str(event.uuid)
     event.correlations = correlations_context.get()
+    event.causations = causations_context.get()
     value = event_to_bytes(event)
-    id_ = r.xadd(name, {key: value}, maxlen=maxlen)
+    id_ = broker.xadd(name, {key: value}, maxlen=maxlen)  # type: ignore
     return id_
 
 
-def event_to_bytes(event):
+def event_to_bytes(event: Any) -> bytes:
     return pickle.dumps(event)
 
 
-def bytes_to_event(bytes_):
+def bytes_to_event(bytes_: bytes) -> Any:
     return pickle.loads(bytes_)
 
 
@@ -78,14 +74,18 @@ def decode_item(item):
 
 
 correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
+causations_context: ContextVar[list] = ContextVar("correlations_context", default=[])
 
 
-def digest_event(stream_name, event, event_id, registered_handlers, args=None):
-    args = args or {}
+def digest_event(
+    stream_name: str, event: Any, event_id: str, registered_handlers: dict, kwargs: dict = None
+) -> None:
+    kwargs = kwargs or {}
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
-        handler(stream_name, event, event_id, **args)
+        causations_context.set(event.update_causations({stream_name: event_id}))
+        handler(stream_name, event, event_id, **kwargs)
     else:
         print("Ignoring event: {}".format(event.event_type))
 
@@ -238,7 +238,11 @@ def match_event(event, filters_dict):
 
 
 def source_item_from_list_in_event(
-    stream_name, list_name, field, value, batch_size=1000,
+    stream_name,
+    list_name,
+    field,
+    value,
+    batch_size=1000,
 ):
     from billiard import Pool, cpu_count  # Celery's multiprocessing fork
 
