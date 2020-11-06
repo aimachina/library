@@ -3,7 +3,7 @@
 import time
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from Typing import Optional
+from typing import Optional
 
 from utils.common import uuid_factory
 

@@ -2,7 +2,7 @@ import pickle
 from contextvars import ContextVar, copy_context
 
 from redis import StrictRedis
-from Typing import Any
+from typing import Any
 from utils.common import extract_attr, uuid_factory
 from utils.configmanager import ConfigManager
 

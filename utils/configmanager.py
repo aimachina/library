@@ -1,7 +1,7 @@
 import os
 
 import yaml
-from Typing import Any, Optional
+from typing import Any, Optional
 
 
 class ConfigManager:

@@ -2,7 +2,7 @@
 from http.client import responses
 import uuid
 from functools import wraps
-from Typing import Callable
+from typing import Callable
 
 
 def make_url(db_config, include_db=True):
