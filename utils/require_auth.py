@@ -35,7 +35,7 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
         def _validate_oauth2(*args, **kwargs):
             authorization = request.headers.get('Authorization')
             if authorization == None:
-                return Response(None, status=403)
+                return Response(None, status=401)
 
             auth = [h.strip() for h in authorization.split()]
 
@@ -49,6 +49,9 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             status, data =  __token_introspection(access_token)
             if status != 200:
                 return Response(dumps(data), status=400, mimetype='application/json')
+
+            if data['active'] == False:
+                return Response(None, status=401)
 
             user_access = {
                 'sub': data['sub'],
