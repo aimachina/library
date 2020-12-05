@@ -1,7 +1,7 @@
 from re import compile
 from json import dumps, loads
 from requests import post, get
-from flask import Response
+from flask import Response, request
 from utils.configmanager import ConfigManager
 from utils.rediscache import make_redis
 
