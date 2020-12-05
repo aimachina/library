@@ -17,7 +17,13 @@ def __token_introspection(access_token):
     data = {
         'token': access_token
     }
-    response = post(f'{HYDRA_HOST}:{HYDRA_ADMIN_PORT}/oauth2/introspect', headers=request.headers, data=data, verify=False)
+    
+    headers = {
+      'X-Forwarded-Proto': 'https'
+    }
+    
+    response = post(f'{HYDRA_HOST}:{HYDRA_ADMIN_PORT}/oauth2/introspect', headers=headers, data=data, verify=False)
+
     return response.status_code, response.json()
 
 def __userinfo(access_token):
