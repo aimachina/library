@@ -134,7 +134,7 @@ class SpanishSoundex():
                 pre_code = pre_code + self.translations['RR']
             else:
                 pre_code = pre_code + ''.join(self.translations[char] for char in group_letters)
-        print(pre_code)
+
         code = self._squeeze(pre_code).replace('0', '')
         return self.pad(code)
 
