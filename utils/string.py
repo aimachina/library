@@ -1,8 +1,9 @@
 # pylint: disable=import-error
 
 import unicodedata
-
 import numpy as np
+import re
+from itertools import groupby
 
 ALLOWED_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
@@ -100,3 +101,48 @@ def levenshtein_distance(seq1, seq2):
             else:
                 matrix[x, y] = min(matrix[x - 1, y] + 1, matrix[x - 1, y - 1] + 1, matrix[x, y - 1] + 1)
     return matrix[size_x - 1, size_y - 1]
+
+
+class SpanishSoundex():
+
+    def __init__(self, equivalent_letter_code_dict = None):
+        self.translations = equivalent_letter_code_dict or \
+                            dict(zip('A|E|I|O|U|Y|W|H|B|P|F|V|C|S|K|G|J|Q|X|Z|D|T|L|M|N|Ñ|R|LL|RR'.split('|'), \
+                                    '00000500102174788744335666959'))
+        self.pad = lambda code: '{}0000'.format(code)[:4]
+
+    def phonetics(self, word:str) -> str:
+        """
+        Return the Soundex equivalent code of the word.
+        """
+        if not isinstance(word, str):
+            raise ValueError('Expected a unicode string!')
+
+        if not len(word):
+            raise ValueError('The given string is empty.')
+
+        word = word.upper()
+        word = re.sub(r'[^A-Z]', r'', word)
+       
+        #Isolate repeated special words: LL, RR
+        separate_LL_RR = re.split(r'(LL|RR)',word)
+        pre_code = ''
+        for group_letters in separate_LL_RR:
+            if 'LL' in group_letters:
+                pre_code = pre_code + self.translations['LL']
+            elif 'RR' in group_letters:
+                pre_code = pre_code + self.translations['RR']
+            else:
+                pre_code = pre_code + ''.join(self.translations[char] for char in group_letters)
+
+        code = self._squeeze(pre_code).replace('0', '')
+        return self.pad(code)
+
+
+    def _squeeze(self, word:str) -> str:
+        """Squeeze the given sequence by dropping consecutive duplicates."""
+        return ''.join(x[0] for x in groupby(word))
+    
+    def sounds_like(self, word1:str, word2:str) -> bool:
+        """Compare the phonetic representations of 2 words."""
+        return self.phonetics(word1) == self.phonetics(word2)        
