@@ -89,6 +89,19 @@ class MongoDAO:
         r = self._collection.update_one({"_id": _id}, {"$set": data}, upsert=False)
         return r.modified_count
 
+        # return self._bank_dao._collection.find_one_and_update(
+        #                                             myquery, 
+        #                                             {'$set': dst_dict}, 
+        #                                             upsert=True,
+        #                                             return_document=True)
+
+    def update_or_insert(self, filters, data):
+        return self._collection.find_one_and_update(
+                                            filters, 
+                                            {'$set': data}, 
+                                            upsert=True,
+                                            return_document=True)
+
     def update_by(self, filters, data, upsert=False):
         r = self._collection.update_one(filters, {"$set": data}, upsert=upsert)
         return r.modified_count
