@@ -22,5 +22,5 @@ for _, consumer in consumers.items():
         print(f"Consumer started for {consumer['consumer_group']}")
         task_ids.append(f'{task}')
 
-with open(f'{os.environ["HOME"]/task_ids}', 'w') as f:
+with open(f'{os.environ["HOME"]}/tasks_ids', 'w') as f:
     f.write(','.join(task_ids))
