@@ -3,7 +3,7 @@ from celery.result import AsyncResult
 from os import environ
 
 if __name__ == '__main__':
-    with open(f'{environ["HOME"]}/task_ids', 'r') as ids_file:
+    with open(f'{environ["HOME"]}/tasks_ids', 'r') as ids_file:
         ids = ids_file.readline().split(',')
         for id in ids:
             ar = AsyncResult(id)
