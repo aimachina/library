@@ -127,3 +127,6 @@ class MongoDAO:
         end_date = end_date or datetime.datetime.now()
         start_date = start_date or datetime.datetime.fromtimestamp(0)
         return {field: {"$gte": start_date, "$lte": end_date}}
+
+    def get_aggregate(self, filters):
+        return self._collection.aggregate(filters)
