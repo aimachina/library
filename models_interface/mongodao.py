@@ -100,6 +100,14 @@ class MongoDAO:
         r = self._collection.update_one(filters, {"$set": data}, upsert=upsert)
         return r.modified_count
 
+    def append_many_to_tag(self, filters: dict, tag: str, data_to_append: dict):
+        return self._collection.find_one_and_update(
+            filters,
+            {"$addToSet": {tag: {"$each": data_to_append}}},
+            upsert=False,
+            return_document=True,
+        )
+
     def create_index(self, on_field, unique=True):
         return self._collection.create_index(on_field, unique=unique)
 
