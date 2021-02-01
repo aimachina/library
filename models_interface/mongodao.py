@@ -107,6 +107,13 @@ class MongoDAO:
             upsert=False,
             return_document=True,
         )
+    def update_or_insert_many(self, filters: dict, tag: str, data_to_append: dict):
+        return self._collection.find_one_and_update(
+            filters,
+            {"$addToSet": {tag: {"$each": data_to_append}}},
+            upsert=True,
+            return_document=True,
+        )    
 
     def create_index(self, on_field, unique=True):
         return self._collection.create_index(on_field, unique=unique)
