@@ -85,6 +85,11 @@ class MongoDAO:
         r = self._collection.insert_many(items)
         return r.inserted_ids
 
+    def insert_many(self, items):
+        r = self._collection.insert_many(items)
+
+        return r.inserted_ids
+
     def update_one(self, _id, data):
         r = self._collection.update_one({"_id": _id}, {"$set": data}, upsert=False)
         return r.modified_count
