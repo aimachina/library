@@ -4,7 +4,7 @@
 import os
 from importlib import import_module
 
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 
 consumers = ConfigManager.get_config_value("event_consumers")
 

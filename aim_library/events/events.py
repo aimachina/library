@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import Optional
 
-from utils.common import uuid_factory
+from aim_library.utils.common import uuid_factory
 
 # pylint: enable=import-error
 

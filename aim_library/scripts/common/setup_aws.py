@@ -1,5 +1,5 @@
 import os
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 
 
 def write_config_dict(config, filename, header="[default]"):

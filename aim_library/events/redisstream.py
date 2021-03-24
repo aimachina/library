@@ -3,8 +3,8 @@ from contextvars import ContextVar, copy_context
 
 from redis import StrictRedis
 from typing import Any
-from utils.common import extract_attr, uuid_factory
-from utils.configmanager import ConfigManager
+from aim_library.utils.common import extract_attr, uuid_factory
+from aim_library.utils.configmanager import ConfigManager
 
 
 class RedisStream:

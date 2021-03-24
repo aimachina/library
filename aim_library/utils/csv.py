@@ -6,8 +6,8 @@ import csv
 from multiprocessing import cpu_count, Pool
 
 from nlp.stopwords import remove_stopwords
-from utils.string import clean_string, title_to_snake, first_valid, remove_accents
-from utils.common import batch_generator
+from aim_library.utils.string import clean_string, title_to_snake, first_valid, remove_accents
+from aim_library.utils.common import batch_generator
 
 
 URL_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-_~+#,%&=*;:@/"

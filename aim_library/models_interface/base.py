@@ -3,9 +3,9 @@
 from importlib import import_module
 from sqlalchemy.ext.declarative import declarative_base
 
-from utils.celery import CeleryManager
-from utils.common import make_url
-from utils.configmanager import ConfigManager
+from aim_library.utils.celery import CeleryManager
+from aim_library.utils.common import make_url
+from aim_library.utils.configmanager import ConfigManager
 
 config = ConfigManager.get_config_value("database")
 module_name = "database." + next(iter(config.keys()))

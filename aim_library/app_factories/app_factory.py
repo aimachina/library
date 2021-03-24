@@ -8,8 +8,8 @@ from flask_cors import CORS
 
 # pylint: disable=no-name-in-module
 from app_factories.api_factory import create_api
-from utils.configmanager import ConfigManager
-from utils.common import make_url
+from aim_library.utils.configmanager import ConfigManager
+from aim_library.utils.common import make_url
 
 # Enable for serving over https
 from werkzeug.contrib.fixers import ProxyFix
