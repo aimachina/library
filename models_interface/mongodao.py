@@ -135,3 +135,6 @@ class MongoDAO:
 
     def get_aggregate(self, filters):
         return self._collection.aggregate(filters)
+
+    def get_distinct(self, field: str, filters: dict):
+        return self._collection.distinct(field, filters)
