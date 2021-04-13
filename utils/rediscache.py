@@ -165,6 +165,7 @@ def redis_cachable(r=None, name=None, timeout=120):
         def _redis_cachable(key, *args, **kwargs):
             _redis_cachable.r = _redis_cachable.r or make_redis()
             r = _redis_cachable.r
+            key = key.decode('utf-8') if type(key) == bytes else key
             key_name = name + "-" + key
             if r.exists(key_name):
                 result = r.get(key_name)
