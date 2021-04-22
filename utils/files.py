@@ -29,8 +29,8 @@ def extension(filename):
     return filename.rsplit(".", 1)[-1].lower()
 
 
-IMAGE_EXTENSIONS = {"jpg", "png", "jpeg"}
-DOCUMENT_EXTENSIONS = {"xls", "xlsx", "csv", "txt"}
+IMAGE_EXTENSIONS = {"jpg", "png", "jpeg", "heif"}
+DOCUMENT_EXTENSIONS = {"xls", "xlsx", "csv", "txt", "xlsb"}
 ARCHIVE_EXTENSIONS = {"zip", "rar"}
 ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS.union(ARCHIVE_EXTENSIONS).union(DOCUMENT_EXTENSIONS)
 
