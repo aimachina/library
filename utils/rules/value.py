@@ -8,9 +8,21 @@ class ItemValue:
     Get values of desire items of a bimbo sale ticket and return its value or None
     """
 
+    ALLOWED_CHARS_ALPHANUM = (
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+    )
     SIMILAR_NUMS = {"L": "1", "Z": "2", "A": "4", "S": "5", "G": "6", "T": "7", "B": "8", "O": "0", "/": "7"}
+
     def __init__(self):
         self.text_re = re.compile(r"[A-Za-z]+")
+
+    def get_datetime(self, line: str):
+        line_clean=clean_string(line,charset=self.ALLOWED_CHARS_ALPHANUM)
+        date_items= re.findall(r"\w{,4}\d{1,8}",line_clean)
+        date_value=date_items[0] if len(date_items)>=2 else ""
+        if date_value.isdigit() and len(date_value)>=8:
+            return datetime.strptime(date_items[0], '%d%m%Y')
+        return None
 
     def add_dot_amount(self, amount: str) -> str:
         if amount.count(".") == 1:
@@ -32,6 +44,19 @@ class ItemValue:
             return numbers
         return None  
 
+    def get_amount_format(self,line):
+        
+        value=clean_string(line,charset=self.ALLOWED_CHARS_ALPHANUM)
+        amount=self.get_numbers(value)
+        
+        if not amount:
+            return None 
+        
+        amount_str=str(amount[0])    
+        insert_point=len(amount_str)-2
+        return amount_str[:insert_point]+"."+amount_str[insert_point:] 
+
+
     def get_only_text(self,clean_line:str)->str:
         words = re.findall(self.text_re,clean_line)
         return words if len(words) else [""]
@@ -45,7 +70,7 @@ class ItemValue:
 
     def get_numbers(self,clean_line:str)->str:
         numbers = re.findall(r'\d+\.?\d{0,2}',clean_line)
-        return numbers if len(numbers) else None
+        return "".join(str(n) for n in numbers) if len(numbers) else None
 
     def get_money_amounts(self,clean_line:str) -> str:
         numbers = re.findall(r'(?<=\$)\d+\.?\d{0,2}',clean_line)
