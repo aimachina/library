@@ -1,5 +1,6 @@
 from utils.string import levenshtein_distance, clean_string, SpanishSoundex
 import re
+from utils.rules.model import Line
 
 
 class Identifier():
@@ -8,6 +9,22 @@ class Identifier():
     """
     def __init__(self):
         super().__init__()
+
+    
+    def get_line_by_label(self,line:Line,sorted_lines:list,label:str,item_value):
+        if not label:
+            label=""
+        while line.uuid != "-1":
+            if (
+                label in line.text
+                or self.is_exit_label(
+                        line.text_clean, label
+                    )
+                ):
+                break
+            line = item_value.get_next_line(sorted_lines)  
+        return line         
+
     
     def _remove_spaces_and_to_lower(self, line: str) -> str:
         return line.replace(" ", "").lower()

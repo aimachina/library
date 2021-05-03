@@ -1,6 +1,7 @@
 from utils.string import clean_string
 from datetime import datetime
 import re
+from utils.rules.model import Line
 
 
 class ItemValue:
@@ -12,13 +13,73 @@ class ItemValue:
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
     )
     SIMILAR_NUMS = {"L": "1", "Z": "2", "A": "4", "S": "5", "G": "6", "T": "7", "B": "8", "O": "0", "/": "7"}
+    ALPHANUMERIC_POINT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890. "
 
     def __init__(self):
         self.text_re = re.compile(r"[A-Za-z]+")
 
+    def get_next_line(self,list_data: list):
+        if len(list_data) >= 1:
+            line_data = list_data.pop(0)
+            text = line_data.get("text")
+            #print(f"get_next_line: {text}")
+            return Line(
+                uuid=line_data.get("uuid"),
+                text=text,
+                text_clean=clean_string(
+                    text, charset=self.ALLOWED_CHARS_ALPHANUM
+                ).upper(),
+                text_len=len(text),
+            )
+        return Line(uuid="-1")
+
+    def format_quantity(self,value: str, number_zero: int):
+        if not value:
+            return
+        value = value.replace(" ", ".")
+
+        len_value = len(value)
+        if not ("." in value) and len_value > number_zero:
+            idx = len_value - number_zero
+            value = value[:idx] + "." + value[idx:]
+        elif not ("." in value) and len_value <= number_zero:
+            value = value + "." + ("0" * number_zero)
+        value_pint = value.split(".")
+        
+        value_first = value_pint[0] if len(value_pint) == 2 else "0"
+        value_second = value_pint[1] if len(value_pint) == 2 else value_pint[0]
+
+        value_first = value_first if value_first else "0"
+        value_second = value_second if value_second else "0"
+
+        final_value = str(int(value_first)) + "." + str(int(value_second))
+   
+        return final_value
+
+
+    def get_quantity_without_text(self,text: str, number_zero: int):
+        quantitys = "".join(
+            character if character in "0123456789." else "0" for character in text
+        )
+        return self.format_quantity(quantitys, 2)
+
+
+    def get_transaction_quantity(self,
+        quantities: list, idex_data: int, max_len: int, number_zero: int
+    ):
+        idx = -1
+        value = quantities[idex_data] if len(quantities) >= (idex_data + 1) else "0"
+        len_value=len(value)
+        if (len_value == max_len or len_value == (max_len - 1)) and not "." in value:
+            delta=0 if len_value == max_len else 1
+            idx = ((max_len-delta) - number_zero) - 1
+        if idx > 0 and idx < max_len:
+            value = "".join((value[:idx], ".", value[number_zero:]))
+        return value    
+
     def get_datetime(self, line: str):
         line_clean=clean_string(line,charset=self.ALLOWED_CHARS_ALPHANUM)
-        date_items= re.findall(r"\w{,4}\d{1,8}",line_clean)
+        date_items= re.findall(r"\d{1,8}",line_clean)
         date_value=date_items[0] if len(date_items)>=2 else ""
         if date_value.isdigit() and len(date_value)>=8:
             return datetime.strptime(date_items[0], '%d%m%Y')
