@@ -10,19 +10,23 @@ class Identifier():
     def __init__(self):
         super().__init__()
 
-    
     def get_line_by_label(self,line:Line,sorted_lines:list,label:str,item_value):
         if not label:
             label=""
         while line.uuid != "-1":
-            clean_line=self.clean_line_label(line.text)
             if (
                 label in line.text
-                or label in clean_line
                 or self.is_exit_label(
-                        clean_line, label
+                        line.text_clean, label
                     )
                 ):
+                break
+            line = item_value.get_next_line(sorted_lines)  
+        return line         
+
+    def get_line_by_re(self,line:Line,sorted_lines:list,regular_exp:str,item_value):
+        while line.uuid != "-1":
+            if re.findall(regular_exp,line.text):
                 break
             line = item_value.get_next_line(sorted_lines)  
         return line         
@@ -104,15 +108,6 @@ class Identifier():
         return clean_string(
             line.upper(),
             charset=charset or "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-        )
-
-    def clean_line_label(self, line: str, charset: str = None) -> str:
-        """
-        Remove not desire chars from a string
-        """
-        return clean_string(
-            line.upper(),
-            charset=charset or "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         )
 
     def is_first_word(self, line: str, first_word_check: str, charset: str = None) -> str:
