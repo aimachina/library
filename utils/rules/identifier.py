@@ -15,10 +15,12 @@ class Identifier():
         if not label:
             label=""
         while line.uuid != "-1":
+            clean_line=self.clean_line_label(line.text)
             if (
                 label in line.text
+                or label in clean_line
                 or self.is_exit_label(
-                        line.text_clean, label
+                        clean_line, label
                     )
                 ):
                 break
@@ -102,6 +104,15 @@ class Identifier():
         return clean_string(
             line.upper(),
             charset=charset or "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        )
+
+    def clean_line_label(self, line: str, charset: str = None) -> str:
+        """
+        Remove not desire chars from a string
+        """
+        return clean_string(
+            line.upper(),
+            charset=charset or "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
         )
 
     def is_first_word(self, line: str, first_word_check: str, charset: str = None) -> str:
