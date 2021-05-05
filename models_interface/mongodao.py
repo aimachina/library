@@ -52,6 +52,9 @@ class MongoDAO:
 
     def get_first(self, filters):
         return self._collection.find_one(filters)
+    
+    def get_first(self, filters, exclude_fields:dict):
+        return self._collection.find_one(filters , exclude_fields)
 
     def delete_one(self, _id):
         r = self._collection.delete_one({"_id": _id})

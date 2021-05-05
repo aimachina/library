@@ -11,3 +11,4 @@ class StringFieldDetails(BaseModel):
 class DateTimedDetails(BaseModel):
     value: datetime = None
     uuid_line: str = None
+    field_label: Optional[str]
