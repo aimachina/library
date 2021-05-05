@@ -1,6 +1,5 @@
 import datetime
 
-
 class MongoDAO:
     def __init__(self, collection):
         self._collection = collection
@@ -49,11 +48,11 @@ class MongoDAO:
             else:
                 filters[k] = v
         return filters
-
+    
     def get_first(self, filters):
         return self._collection.find_one(filters)
     
-    def get_first(self, filters, exclude_fields:dict):
+    def get_first_exclude_fields(self, filters, exclude_fields):
         return self._collection.find_one(filters , exclude_fields)
 
     def delete_one(self, _id):
