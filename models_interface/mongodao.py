@@ -50,7 +50,10 @@ class MongoDAO:
                 filters[k] = v
         return filters
 
-    def get_first(self, filters, exclude_fields : dict = None):
+    def get_first(self, filters):
+        return self._collection.find_one(filters)
+    
+    def get_first(self, filters, exclude_fields:dict):
         return self._collection.find_one(filters , exclude_fields)
 
     def delete_one(self, _id):
