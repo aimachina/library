@@ -59,9 +59,9 @@ class ItemValue:
 
     def get_quantity_without_text(self,text: str, number_zero: int):
         quantitys = "".join(
-            character if character in "0123456789." else "0" for character in text
+            character if character in "0123456789." else "" for character in text
         )
-        return self.format_quantity(quantitys, 2)
+        return self.format_quantity(quantitys, number_zero)
 
 
     def get_transaction_quantity(self,
