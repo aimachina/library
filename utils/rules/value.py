@@ -37,7 +37,6 @@ class ItemValue:
         if not value:
             return
         value = value.replace(" ", ".")
-
         len_value = len(value)
         if not ("." in value) and len_value > number_zero:
             idx = len_value - number_zero
@@ -52,16 +51,14 @@ class ItemValue:
         value_first = value_first if value_first else "0"
         value_second = value_second if value_second else "0"
 
-        final_value = str(int(value_first)) + "." + str(int(value_second))
+        final_value = str(int(value_first)) + "." + str(int(value_second)).zfill(number_zero)
    
         return final_value
 
 
     def get_quantity_without_text(self,text: str, number_zero: int):
-        quantitys = "".join(
-            character if character in "0123456789." else "0" for character in text
-        )
-        return self.format_quantity(quantitys, 2)
+        quantitys = clean_string(text,"0123456789. ")
+        return self.format_quantity(quantitys, number_zero)
 
 
     def get_transaction_quantity(self,
