@@ -62,7 +62,7 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
 
             user_access = {
                 'sub': data['sub'],
-                'claims': data['ext']['claims'],
+                'claims': [f'{k}:{v}' for k,v in data['ext']['claims'].items()],
                 'branch_id': data['ext']['bra'],
                 'organization_id': data['ext']['org']
             }
