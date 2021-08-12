@@ -15,6 +15,9 @@ def make_es(retries=30, config=None):
                     conf["hosts"],
                     scheme="https",
                     verify_certs=False,
+                    timeout=30,
+                    max_retries=10,
+                    retry_on_timeout=True,
                     http_auth=(conf['user'], conf['secret'])
                     )
             else:
