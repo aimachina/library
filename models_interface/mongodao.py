@@ -1,5 +1,6 @@
 import datetime
 
+
 class MongoDAO:
     def __init__(self, collection):
         self._collection = collection
@@ -48,12 +49,12 @@ class MongoDAO:
             else:
                 filters[k] = v
         return filters
-    
+
     def get_first(self, filters):
         return self._collection.find_one(filters)
-    
+
     def get_first_exclude_fields(self, filters, exclude_fields):
-        return self._collection.find_one(filters , exclude_fields)
+        return self._collection.find_one(filters, exclude_fields)
 
     def delete_one(self, _id):
         r = self._collection.delete_one({"_id": _id})
@@ -68,12 +69,15 @@ class MongoDAO:
         return r.deleted_count
 
     def save_one(self, item):
+        from pymongo.errors import DuplicateKeyError
+
         if "_id" in item and not item["_id"]:
             item.pop("_id")
         try:
             r = self._collection.insert_one(item)
             return r.inserted_id
-        except:  # DuplicateKeyError
+        except DuplicateKeyError as e:
+            print(e)
             return None
 
     def sample(self, filters={}, n=1):
@@ -98,23 +102,21 @@ class MongoDAO:
 
     def update_or_insert(self, filters, data):
         return self._collection.find_one_and_update(
-                                            filters, 
-                                            {'$set': data}, 
-                                            upsert=True,
-                                            return_document=True)
+            filters, {"$set": data}, upsert=True, return_document=True
+        )
 
     def update_by(self, filters, data, upsert=False):
         r = self._collection.update_one(filters, {"$set": data}, upsert=upsert)
         return r.modified_count
 
-    def append_many_to_tag(self, filters: dict, tag: str, data_to_append: dict,upsert=False):
+    def append_many_to_tag(self, filters: dict, tag: str, data_to_append: dict, upsert=False):
         return self._collection.find_one_and_update(
             filters,
             {"$addToSet": {tag: {"$each": data_to_append}}},
             upsert=upsert,
             return_document=True,
         )
-    
+
     def create_index(self, on_field, unique=True):
         return self._collection.create_index(on_field, unique=unique)
 
