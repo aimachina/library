@@ -20,6 +20,7 @@ jobs:
             - name: Publish
               run: |
                   mkdir aim_library
+                  touch aim_library/__init__.py
                   mv app_factories aim_library
                   mv database aim_library
                   mv events aim_library

@@ -5,7 +5,7 @@ from importlib import import_module
 from flask_restx import Api
 
 # pylint: disable=no-name-in-module
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 from app import resources
 
 config = ConfigManager.get_config_value('ory') 

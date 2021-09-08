@@ -7,7 +7,7 @@ from logging import warning
 from botocore.exceptions import ClientError
 
 import boto3
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 
 
 class S3:

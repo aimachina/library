@@ -1,7 +1,7 @@
-from utils.string import clean_string
+from aim_library.utils.string import clean_string
 from datetime import datetime
 import re
-from utils.rules.model import Line
+from aim_library.utils.rules.model import Line
 
 
 class ItemValue:

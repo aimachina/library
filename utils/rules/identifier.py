@@ -1,6 +1,6 @@
-from utils.string import levenshtein_distance, clean_string, SpanishSoundex
+from aim_library.utils.string import levenshtein_distance, clean_string, SpanishSoundex
 import re
-from utils.rules.model import Line
+from aim_library.utils.rules.model import Line
 
 
 class Identifier():

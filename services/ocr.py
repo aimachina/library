@@ -1,10 +1,10 @@
 import boto3
 
-from services.trp import Document
+from aim_library.services.trp import Document
 import PIL
-from utils.image import image_to_bytes
-from utils.configmanager import ConfigManager
-from utils.common import make_url
+from aim_library.utils.image import image_to_bytes
+from aim_library.utils.configmanager import ConfigManager
+from aim_library.utils.common import make_url
 
 
 class Textract:

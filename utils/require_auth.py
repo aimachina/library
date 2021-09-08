@@ -2,8 +2,8 @@ from re import compile
 from json import dumps, loads
 from requests import post, get
 from flask import Response, request
-from utils.configmanager import ConfigManager
-from utils.rediscache import make_redis
+from aim_library.utils.configmanager import ConfigManager
+from aim_library.utils.rediscache import make_redis
 
 conf = ConfigManager.get_config_value('ory')
 hydra_config = conf['oauth2']['hydra']

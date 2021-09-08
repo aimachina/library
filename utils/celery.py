@@ -1,7 +1,7 @@
 # pylint: disable=import-error
 from celery import Celery
-from utils.common import make_url
-from utils.configmanager import ConfigManager
+from aim_library.utils.common import make_url
+from aim_library.utils.configmanager import ConfigManager
 
 
 class CeleryManager:

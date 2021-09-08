@@ -4,7 +4,7 @@ import copy
 import builtins
 import json
 
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 
 
 class RedisCache:

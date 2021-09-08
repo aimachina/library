@@ -1,4 +1,4 @@
-from utils.string import levenshtein_distance
+from aim_library.utils.string import levenshtein_distance
 from functools import reduce
 
 def get_porcentage_coincidence(base_str: str, to_compare: str) -> float:

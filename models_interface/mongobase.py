@@ -5,8 +5,8 @@ from dataclasses import dataclass, field
 import datetime
 from marshmallow import Schema, fields, post_load, ValidationError
 
-from database.mongo import db
-from utils.common import uuid_factory
+from aim_library.database.mongo import db
+from aim_library.utils.common import uuid_factory
 
 
 class BytesField(fields.Field):

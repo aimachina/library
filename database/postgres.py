@@ -3,8 +3,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 
-from utils.configmanager import ConfigManager
-from utils.common import make_url
+from aim_library.utils.configmanager import ConfigManager
+from aim_library.utils.common import make_url
 
 
 db_config = ConfigManager.get_config_value("database", "postgres")

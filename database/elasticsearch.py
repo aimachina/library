@@ -2,7 +2,7 @@
 # pylint: disable=no-name-in-module
 from elasticsearch import Elasticsearch
 
-from utils.configmanager import ConfigManager
+from aim_library.utils.configmanager import ConfigManager
 
 
 def make_es(retries=30, config=None):
