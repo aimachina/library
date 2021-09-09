@@ -3,7 +3,7 @@ name: Publish Library packages
 # events but only for the master branch
 on:
     push:
-        branches: [package]
+        branches: [master]
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
     # This workflow contains a single job called "build"
@@ -19,13 +19,6 @@ jobs:
             
             - name: Publish
               run: |
-                  mkdir aim_library
-                  mv app_factories aim_library
-                  mv database aim_library
-                  mv events aim_library
-                  mv models_interface aim_library
-                  mv services aim_library
-                  mv utils aim_library
                   python3 -m venv venv
                   source venv/bin/activate
                   pip install -U pip
