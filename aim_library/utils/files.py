@@ -41,6 +41,8 @@ def is_image(filename, image_extensions=IMAGE_EXTENSIONS):
 def is_document(filename, document_extensions=DOCUMENT_EXTENSIONS):
     return extension(filename) in document_extensions
 
+def is_archive(filename, document_extensions=ARCHIVE_EXTENSIONS):
+    return extension(filename) in document_extensions
 
 def allowed_file(filename, allowed_extensions=ALLOWED_EXTENSIONS):
     return "." in filename and extension(filename) in allowed_extensions
