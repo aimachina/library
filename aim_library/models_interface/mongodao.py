@@ -91,9 +91,8 @@ class MongoDAO:
         r = self._collection.insert_many(items)
         return r.inserted_ids
 
-    def insert_many(self, items):
-        r = self._collection.insert_many(items)
-
+    def insert_many(self, items, ordered = True):
+        r = self._collection.insert_many(items,ordered)
         return r.inserted_ids
 
     def update_one(self, _id, data):
