@@ -14,7 +14,7 @@ from aim_library.utils.common import make_url
 # Enable for serving over https
 from werkzeug.contrib.fixers import ProxyFix
 
-# logging.getLogger("flask_cors").level = logging.DEBUG
+logging.getLogger("flask_cors").level = logging.INFO
 
 
 def make_flask():
