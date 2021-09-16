@@ -1,3 +1,4 @@
+import os
 import pickle
 from contextvars import ContextVar, copy_context
 
@@ -85,10 +86,31 @@ def digest_event(
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
         causations_context.set(event.update_causations({stream_name: event_id}))
-        handler(stream_name, event, event_id, **kwargs)
+        try:
+            handler(stream_name, event, event_id, **kwargs)
+        except Exception as exc:
+            # Produce error event
+            print(8*"*"+"PRODUCING ERROR EVENT"+8*"*")
+            produce_error_event(stream_name,event,event_id,handler,exc)
+            raise exc from None
     else:
         print("Ignoring event: {}".format(event.event_type))
 
+def produce_error_event(stream_name, event, event_id, handler, exc):
+    import traceback as tb
+    from aim_common.events.base_event import BaseEvent
+    from aim_common.events.event_type import EventType
+
+    error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
+    error_event.data = {
+        "event_bytes": event_to_bytes(event),
+        "event_id": event_id,
+        "event_type": event.event_type,
+        "handler": handler.__name__,
+        "hostname": os.getenv("HOSTNAME") or "UNKNOWN_HOST",
+        "traceback": "".join(tb.format_exception(None, exc, exc.__traceback__)),
+    }
+    produce_one(stream_name,error_event)
 
 def make_consumer_name(uuid, group_name):
     if uuid:
