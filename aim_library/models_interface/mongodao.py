@@ -116,6 +116,12 @@ class MongoDAO:
             return_document=True,
         )
 
+    def update_push(self,filters: dict,push:dict):
+        return self._collection.find_one_and_update(
+            filters, 
+            {"$push":push}
+        )
+
     def create_index(self, on_field, unique=True):
         return self._collection.create_index(on_field, unique=unique)
 
