@@ -122,8 +122,11 @@ class MongoDAO:
             {"$push":push}
         )
 
-    def create_index(self, on_field, unique=True):
-        return self._collection.create_index(on_field, unique=unique)
+    def drop_indexes(self):
+        return self._collection.drop_indexes()
+        
+    def create_index(self, on_field, unique=True,sparse = False):
+        return self._collection.create_index(on_field, unique=unique,sparse= sparse)
 
     def create_indexes(self, indexes):
         return self._collection.create_indexes(indexes)
