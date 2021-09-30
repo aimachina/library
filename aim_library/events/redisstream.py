@@ -24,7 +24,7 @@ class RedisStream:
         return cls.__broker
 
 
-def produce_one(name: str, event: Any, maxlen: int = 10000) -> str:
+def produce_one(name: str, event: Any, maxlen: int = None) -> str:
     broker = RedisStream.get_broker()
     key = str(event.uuid)
     event.correlations = correlations_context.get()

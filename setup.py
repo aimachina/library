@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='aim-library',
-    version='0.0.8',
+    version='0.0.9',
     author='AIMachina',
     author_email='ticketai@outlook.com',
     description='AIMachina library',
