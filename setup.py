@@ -1,19 +1,19 @@
 import setuptools
 
-with open('README.md', 'r') as fh:
+with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='aim-library',
-    version='0.0.9',
-    author='AIMachina',
-    author_email='ticketai@outlook.com',
-    description='AIMachina library',
-    url='Coming soon...',
+    name="aim-library",
+    version="0.0.10",
+    author="AIMachina",
+    author_email="ticketai@outlook.com",
+    description="AIMachina library",
+    url="https://github.com/aimachina/library",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
-    python_requires='>=3.6',
+    python_requires=">=3.6",
 )

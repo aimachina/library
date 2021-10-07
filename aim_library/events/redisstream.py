@@ -118,29 +118,29 @@ def make_consumer_name(uuid, group_name):
     return uuid_factory(group_name + "-consumer")()
 
 
-def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries=3):
+def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries):
     r = RedisStream.get_broker()
     start_from = "-"
     discarded = []
     while messages := r.xpending_range(stream_name, group_name, start_from, "+", 10, consumer_name):
         for message in messages:
-            if message["times_delivered"] >= max_retries:
+            if message["times_delivered"] > max_retries:
                 r.xack(stream_name, group_name, message["message_id"])
                 discarded.append(message["message_id"])
         start_from = increment_id(messages[-1]["message_id"])
     return discarded
 
 
-def discard_from_pel_by_stream(group_name, consumer_name, streams):
+def discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries):
     discarded_list = []
     for stream_name in streams:
-        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name)
+        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name,max_retries)
         discarded_list.append((stream_name, discarded))
     return list(filter(is_really_not_empty, discarded_list))
 
 
-def process_pending_messages(broker, group_name, consumer_name, streams, handlers):
-    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams)
+def process_pending_messages(broker, group_name, consumer_name, streams, handlers,max_retries):
+    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries)
     if discarded:
         print(f"Discarded unprocessable events: {discarded} for {consumer_name}")
 
@@ -168,7 +168,7 @@ def new_messages_by_stream(broker, group_name, consumer_name, streams, start_fro
     return messages_by_stream
 
 
-def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None):
+def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
     broker = RedisStream.get_broker()
     maybe_create_consumer_groups(broker, consumer_group_config)
 
@@ -177,7 +177,7 @@ def start_redis_consumer(consumer_group_config, registered_handlers, start_from=
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
 
-    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers)
+    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers,max_retries)
     while True:
         for message in new_messages_by_stream(
             broker, group_name, consumer_name, streams, start_from, batch_size
