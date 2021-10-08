@@ -1,10 +1,11 @@
 import os
 import pickle
+from datetime import datetime
 from contextvars import ContextVar, copy_context
 
 from redis import StrictRedis
-from typing import Any
-from aim_library.utils.common import extract_attr, uuid_factory
+from typing import Any, Dict
+from aim_library.utils.common import extract_attr, uuid_factory, make_jsend_response
 from aim_library.utils.configmanager import ConfigManager
 
 
@@ -77,40 +78,94 @@ def decode_item(item):
 correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
 causations_context: ContextVar[list] = ContextVar("correlations_context", default=[])
 
+consumer_context: ContextVar[dict] = ContextVar("consumer_context", default={})
+event_context: ContextVar[dict] = ContextVar("event_context", default={})
 
-def digest_event(
-    stream_name: str, event: Any, event_id: str, registered_handlers: dict, kwargs: dict = None
-) -> None:
-    kwargs = kwargs or {}
+
+def set_event_context(correlation_id: str, user_access: Dict[str, Any]) -> None:
+
+    event_context.set({"correlation_id": correlation_id, "user_access": user_access})
+
+
+def set_consumer_context(stream_name: str, event_type: str, event_id: str, handler_name: str) -> None:
+    ctx = {
+        "start_time": datetime.utcnow(),
+        "stream_name": stream_name,
+        "handler": handler_name,
+        "event_id": event_id,
+        "event_type": event_type,
+        "hostname": os.getenv("HOSTNAME") or "UNKNOWN_HOST",
+    }
+    consumer_context.set(ctx)
+
+
+def maybe_retrieve_correlation_id(event: Any) -> str:
+    return (
+        extract_attr(event, "document_id")
+        or extract_attr(event, "source_id")
+        or extract_attr(event, "payload.uuid")
+        or ""
+    )
+
+
+def get_event_context(event=None):
+    ctx = event_context.get()
+    if not ctx and event is not None:
+        ctx["inf_correlation_id"] = maybe_retrieve_correlation_id(event)
+        ctx["inf_user_access"] = extract_attr(event, "user_access")
+    return ctx
+
+
+def digest_event(stream_name: str, event: Any, event_id: str, registered_handlers: dict) -> None:
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
         causations_context.set(event.update_causations({stream_name: event_id}))
+        set_consumer_context(stream_name, event.event_type, event_id, handler.__name__)
         try:
-            handler(stream_name, event, event_id, **kwargs)
+            handler(stream_name, event, event_id)
+            produce_log_message(message=make_jsend_response(), set_end=True)
         except Exception as exc:
             # Produce error event
-            print(8*"*"+"PRODUCING ERROR EVENT"+8*"*")
-            produce_error_event(stream_name,event,event_id,handler,exc)
+            print(8 * "*" + "PRODUCING ERROR EVENT" + 8 * "*")
+            produce_error_event(stream_name, event, event_id, handler, exc)
             raise exc from None
     else:
         print("Ignoring event: {}".format(event.event_type))
 
-def produce_error_event(stream_name, event, event_id, handler, exc):
+
+def produce_log_message(message: dict, set_end: bool = False):
+    from aim_common.events.base_event import BaseEvent
+    from aim_common.events.event_type import EventType
+
+    log_event = BaseEvent(event_type=EventType.LOGGING_EVENT)
+    log_event.data = {
+        "msg": message,
+        "event_context": get_event_context(),
+        "consumer_context": consumer_context.get(),
+    }
+    if set_end:
+        log_event.data["consumer_context"]["end_time"] = datetime.utcnow()
+    produce_one("logging", log_event, maxlen=1000)
+
+
+def produce_error_event(stream_name, event, exc):
     import traceback as tb
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
 
+    dead_letter_id = produce_one("dead-letter", event, maxlen=1000)
+
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
-        "event_bytes": event_to_bytes(event),
-        "event_id": event_id,
-        "event_type": event.event_type,
-        "handler": handler.__name__,
-        "hostname": os.getenv("HOSTNAME") or "UNKNOWN_HOST",
+        "dead_letter_id": dead_letter_id,
+        "exception": repr(exc),
         "traceback": "".join(tb.format_exception(None, exc, exc.__traceback__)),
+        "event_context": get_event_context(event),
+        "consumer_context": {**consumer_context.get(), "end_time": datetime.utcnow()},
     }
-    produce_one(stream_name,error_event)
+    produce_one(stream_name, error_event)
+
 
 def make_consumer_name(uuid, group_name):
     if uuid:
@@ -131,16 +186,16 @@ def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_ret
     return discarded
 
 
-def discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries):
+def discard_from_pel_by_stream(group_name, consumer_name, streams, max_retries):
     discarded_list = []
     for stream_name in streams:
-        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name,max_retries)
+        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries)
         discarded_list.append((stream_name, discarded))
     return list(filter(is_really_not_empty, discarded_list))
 
 
-def process_pending_messages(broker, group_name, consumer_name, streams, handlers,max_retries):
-    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries)
+def process_pending_messages(broker, group_name, consumer_name, streams, handlers, max_retries):
+    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams, max_retries)
     if discarded:
         print(f"Discarded unprocessable events: {discarded} for {consumer_name}")
 
@@ -168,7 +223,9 @@ def new_messages_by_stream(broker, group_name, consumer_name, streams, start_fro
     return messages_by_stream
 
 
-def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
+def start_redis_consumer(
+    consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1
+):
     broker = RedisStream.get_broker()
     maybe_create_consumer_groups(broker, consumer_group_config)
 
@@ -177,7 +234,7 @@ def start_redis_consumer(consumer_group_config, registered_handlers, start_from=
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
 
-    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers,max_retries)
+    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers, max_retries)
     while True:
         for message in new_messages_by_stream(
             broker, group_name, consumer_name, streams, start_from, batch_size
