@@ -104,6 +104,7 @@ def maybe_retrieve_correlation_id(event: Any) -> str:
         extract_attr(event, "document_id")
         or extract_attr(event, "source_id")
         or extract_attr(event, "payload.uuid")
+        or extract_attr(event, "payload.source_id")
         or ""
     )
 
@@ -111,8 +112,8 @@ def maybe_retrieve_correlation_id(event: Any) -> str:
 def get_event_context(event=None):
     ctx = event_context.get()
     if not ctx and event is not None:
-        ctx["inf_correlation_id"] = maybe_retrieve_correlation_id(event)
-        ctx["inf_user_access"] = extract_attr(event, "user_access")
+        ctx["correlation_id"] = maybe_retrieve_correlation_id(event)
+        ctx["user_access"] = extract_attr(event, "user_access")
     return ctx
 
 
