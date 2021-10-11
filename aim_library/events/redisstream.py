@@ -125,14 +125,16 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         set_consumer_context(stream_name, event.event_type, event_id, handler.__name__)
         try:
             handler(stream_name, event, event_id)
-            produce_log_message(message=make_jsend_response(), set_end=True)
+            if os.getenv("LOG_ALL_EVENTS") and stream_name not in ["logging"]:
+                produce_log_message(message=make_jsend_response(), set_end=True)
         except Exception as exc:
             # Produce error event
             print(8 * "*" + "PRODUCING ERROR EVENT" + 8 * "*")
-            produce_error_event(stream_name, event, event_id, handler, exc)
+            produce_error_event(stream_name, event, exc)
             raise exc from None
     else:
-        print("Ignoring event: {}".format(event.event_type))
+        if os.getenv("PRINT_IGNORED_EVENTS"):
+            print("Ignoring event: {}".format(event.event_type))
 
 
 def produce_log_message(message: dict, set_end: bool = False):
