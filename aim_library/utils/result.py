@@ -1,3 +1,4 @@
+from http.client import responses
 import traceback as tb
 from typing import TypeVar, Any, Protocol, Dict, Tuple
 
@@ -42,10 +43,10 @@ class Result(Protocol):
 
 
 class Ok:
-    def __init__(self, value: Any = True, code: int = 200, status: str = "success") -> None:
+    def __init__(self, value: Any = True, code: int = 200, status: str = "") -> None:
         self._value = value
         self._code = code
-        self._status = status
+        self._status = status or responses.get(code, "OK")
 
     def __repr__(self) -> str:
         return f"Ok({repr(self._value)})"
@@ -101,12 +102,12 @@ class Ok:
 
 
 class Error:
-    def __init__(self, value: Any, code: int = 500, status: str = "Error") -> None:
+    def __init__(self, value: Any, code: int = 500, status: str = "") -> None:
         if not isinstance(value, Exception):
             value = ConsumerError(value)
         self._value = value
         self._code = code
-        self._status = status
+        self._status = status or responses.get(code, "Internal Server Error")
 
     def __repr__(self) -> str:
         return f"Err({repr(self._value)})"
@@ -146,10 +147,13 @@ class Error:
 
     def as_dict(self) -> Any:
         return {
-            "value": self._value,
+            "value": repr(self._value),
             "code": self._code,
             "status": self._status,
         }
+
+    def exc(self) -> Exception:
+        return self.value
 
     def as_response(self) -> Tuple[Dict[str, Any], int]:
         resp = self.as_dict()
