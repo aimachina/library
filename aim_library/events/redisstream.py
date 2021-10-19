@@ -5,7 +5,7 @@ from contextvars import ContextVar, copy_context
 
 from redis import StrictRedis
 from typing import Any, Dict, Optional
-from aim_library.utils.common import extract_attr, uuid_factory, make_jsend_response
+from aim_library.utils.common import enabled_by_env, extract_attr, uuid_factory
 from aim_library.utils.configmanager import ConfigManager
 from aim_library.utils.result import Result, Ok, Error
 
@@ -83,32 +83,38 @@ consumer_context: ContextVar[dict] = ContextVar("consumer_context", default={})
 event_context: ContextVar[dict] = ContextVar("event_context", default={})
 
 
-def set_event_context(correlation_id: str, user_access: Dict[str, Any], error_stream: str = "") -> None:
-    event_context.set(
-        {
-            "correlation_id": correlation_id,
-            "user_access": user_access,
-            "error_stream": error_stream,
-        }
+def set_event_context(correlation_id: str, user_access: Dict[str, Any], produce_errors_to: str = "") -> None:
+    ctx = event_context.get()
+    ctx["correlation_id"] = correlation_id
+    ctx["user_access"] = user_access
+    ctx["produce_errors_to"] = (
+        produce_errors_to or os.getenv("PRODUCE_ERRORS_TO") or ctx.get("stream_name", "")
     )
+    event_context.set(ctx)
 
 
-def set_consumer_context(stream_name: str, event_type: str, event_id: str, handler_name: str) -> None:
-    ctx = {
-        "start_time": datetime.utcnow(),
-        "stream_name": maybe_decode(stream_name),
-        "handler": handler_name,
-        "event_id": maybe_decode(event_id),
-        "event_type": event_type,
-        "hostname": os.getenv("HOSTNAME") or "UNKNOWN_HOST",
-    }
-    consumer_context.set(ctx)
+def set_event_context_start(event_id, event_type, stream_name, handler, dt=None):
+    ctx = event_context.get()
+    ctx["start_time"] = dt or datetime.utcnow()
+    ctx["stream_name"] = maybe_decode(stream_name)
+    ctx["event_id"] = maybe_decode(event_id)
+    ctx["event_type"] = event_type.name
+    ctx["handler"] = handler
+    event_context.set(ctx)
 
 
-def set_context_end_time(dt=None):
+def set_consumer_context(consumer_name, group_name) -> None:
     ctx = consumer_context.get()
-    ctx["end_time"] = dt or datetime.utcnow()
+    ctx["hostname"] = os.getenv("HOSTNAME") or "UNKNOWN_HOST"
+    ctx["consumer_name"] = consumer_name
+    ctx["group_name"] = group_name
     consumer_context.set(ctx)
+
+
+def set_event_context_end(dt: Optional[datetime] = None) -> None:
+    ctx = event_context.get()
+    ctx["end_time"] = dt or datetime.utcnow()
+    event_context.set(ctx)
 
 
 def maybe_retrieve_correlation_id(event: Any) -> str:
@@ -147,56 +153,67 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
         causations_context.set(event.update_causations({stream_name: event_id}))
-        set_consumer_context(stream_name, event.event_type, event_id, handler.__name__)
         ensure_event_context(event)
         try:
+            set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
             result = ensure_result(handler(stream_name, event, event_id))
-            set_context_end_time()
-            if os.getenv("LOG_ALL_EVENTS") == "1" and stream_name not in ["logs"]:
+            set_event_context_end()
+            if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
                 produce_from_result(result)
 
         except Exception as exc:
-            set_context_end_time()
+            set_event_context_end()
             dead_letter_id = produce_one("dead-letter", event, maxlen=1000)
             produce_from_result(Error(value=exc), stream_name=stream_name, dead_letter_id=dead_letter_id)
-            if not os.getenv("PREVENT_CONSUMER_CRASH"):
+            if not enabled_by_env("PREVENT_CONSUMER_CRASH"):
                 raise exc from None
     else:
-        if os.getenv("PRINT_IGNORED_EVENTS"):
+        if enabled_by_env("PRINT_IGNORED_EVENTS"):
             print("Ignoring event: {}".format(event.event_type))
 
 
 def produce_from_result(result, stream_name=None, dead_letter_id=None):
     if result.is_ok():
-        produce_log_event(result.ok())
+        produce_log_event(result.ok(), is_user_log=False)
     else:
         produce_error_event(stream_name, dead_letter_id, result)
 
 
-def produce_log_event(message: dict, stream_name="logs"):
+def produce_user_log_event(result: Result) -> None:
+    if not isinstance(result, (Ok, Error)):
+        raise ValueError("Parameter 'result' must be a Result [Ok or Error].")
+    produce_log_event(result, is_user_log=True)
+
+
+def produce_log_event(
+    message: dict, stream_name: str = "logs", is_user_log: bool = True, make_uuid=uuid_factory("LOG")
+):
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
 
     log_event = BaseEvent(event_type=EventType.LOGGING_EVENT)
     log_event.data = {
+        "uuid": make_uuid(),
         "msg": message,
         "event_context": get_event_context(),
         "consumer_context": consumer_context.get(),
+        "is_user_log": bool(is_user_log),
     }
     produce_one(stream_name, log_event, maxlen=1000)
 
 
-def produce_error_event(stream_name, dead_letter_id, result):
+def produce_error_event(stream_name, dead_letter_id, result, make_uuid=uuid_factory("LOG")):
     import traceback as tb
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
 
     ctx = get_event_context()
     exc = result.exc()
-    error_stream = ctx["error_stream"] or os.getenv("PRODUCE_ERRORS_TO", stream_name)
-    print(8 * "*" + f"PRODUCING ERROR EVENT TO '{error_stream}'" + 8 * "*")
+    produce_errors_to = ctx["produce_errors_to"] or os.getenv("PRODUCE_ERRORS_TO", stream_name)
+    print(8 * "*" + f"PRODUCING ERROR EVENT TO '{produce_errors_to}'" + 8 * "*")
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
+        "uuid": make_uuid(),
         "msg": result.err(),
         "event_context": ctx,
         "consumer_context": {**consumer_context.get(), "end_time": datetime.utcnow()},
@@ -204,7 +221,7 @@ def produce_error_event(stream_name, dead_letter_id, result):
         "exception": repr(exc),
         "traceback": "".join(tb.format_exception(None, exc, exc.__traceback__)),
     }
-    produce_one(error_stream, error_event)
+    produce_one(produce_errors_to, error_event)
     produce_one("logs", error_event)
 
 
@@ -214,10 +231,10 @@ def maybe_decode(string):
     return string
 
 
-def make_consumer_name(uuid, group_name):
-    if uuid:
-        return group_name + "_consumer-" + str(uuid)
-    return uuid_factory(group_name + "-consumer")()
+def make_consumer_name(consumer_id, group_name):
+    if consumer_id:
+        return str(consumer_id)
+    return uuid_factory(os.getenv("HOSTNAME", group_name))()
 
 
 def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries):
@@ -281,6 +298,7 @@ def start_redis_consumer(
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
 
+    set_consumer_context(consumer_name, group_name)
     process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers, max_retries)
     while True:
         for message in new_messages_by_stream(

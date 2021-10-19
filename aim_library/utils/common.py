@@ -1,4 +1,5 @@
 # pylint: disable=import-error
+import os
 from http.client import responses
 import uuid
 from functools import wraps
@@ -103,3 +104,9 @@ def batch_generator(generator, batch_size=16):
         except StopIteration:
             yield batch
             break
+
+
+def enabled_by_env(var, truthy_vals=("1", 1, True, "true", "enabled")):
+    value = os.getenv(var, "False")
+    value = value.lower() if isinstance(value, str) else value
+    return value in truthy_vals
