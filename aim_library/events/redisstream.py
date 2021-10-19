@@ -174,7 +174,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
 
 def produce_from_result(result, stream_name=None, dead_letter_id=None):
     if result.is_ok():
-        produce_log_event(result.ok(), is_user_log=False)
+        produce_log_event(result, is_user_log=False)
     else:
         produce_error_event(stream_name, dead_letter_id, result)
 
@@ -186,7 +186,7 @@ def produce_user_log_event(result: Result) -> None:
 
 
 def produce_log_event(
-    message: dict, stream_name: str = "logs", is_user_log: bool = True, make_uuid=uuid_factory("LOG")
+    result: Result, stream_name: str = "logs", is_user_log: bool = True, make_uuid=uuid_factory("LOG")
 ):
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
@@ -194,7 +194,7 @@ def produce_log_event(
     log_event = BaseEvent(event_type=EventType.LOGGING_EVENT)
     log_event.data = {
         "uuid": make_uuid(),
-        "msg": message,
+        "result": result.as_dict(),
         "event_context": get_event_context(),
         "consumer_context": consumer_context.get(),
         "is_user_log": bool(is_user_log),
@@ -202,24 +202,25 @@ def produce_log_event(
     produce_one(stream_name, log_event, maxlen=1000)
 
 
-def produce_error_event(stream_name, dead_letter_id, result, make_uuid=uuid_factory("LOG")):
-    import traceback as tb
+def produce_error_event(
+    stream_name: str, dead_letter_id: str, result: Error, make_uuid=uuid_factory("LOG"), is_user_log=False
+):
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
 
     ctx = get_event_context()
-    exc = result.exc()
     produce_errors_to = ctx["produce_errors_to"] or os.getenv("PRODUCE_ERRORS_TO", stream_name)
     print(8 * "*" + f"PRODUCING ERROR EVENT TO '{produce_errors_to}'" + 8 * "*")
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
         "uuid": make_uuid(),
-        "msg": result.err(),
+        "result": result.err(),
         "event_context": ctx,
-        "consumer_context": {**consumer_context.get(), "end_time": datetime.utcnow()},
+        "consumer_context": consumer_context.get(),
         "dead_letter_id": maybe_decode(dead_letter_id),
-        "exception": repr(exc),
-        "traceback": "".join(tb.format_exception(None, exc, exc.__traceback__)),
+        "exception": repr(result.exc()),
+        "traceback": result.traceback(),
+        "is_user_log": bool(is_user_log),
     }
     produce_one(produce_errors_to, error_event)
     produce_one("logs", error_event)
