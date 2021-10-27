@@ -1,11 +1,13 @@
 import os
 import pickle
+from datetime import datetime
 from contextvars import ContextVar, copy_context
 
 from redis import StrictRedis
-from typing import Any
-from aim_library.utils.common import extract_attr, uuid_factory
+from typing import Any, Dict, Optional
+from aim_library.utils.common import enabled_by_env, extract_attr, uuid_factory
 from aim_library.utils.configmanager import ConfigManager
+from aim_library.utils.result import Result, Ok, Error
 
 
 class RedisStream:
@@ -77,45 +79,168 @@ def decode_item(item):
 correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
 causations_context: ContextVar[list] = ContextVar("correlations_context", default=[])
 
+consumer_context: ContextVar[dict] = ContextVar("consumer_context", default={})
+event_context: ContextVar[dict] = ContextVar("event_context", default={})
 
-def digest_event(
-    stream_name: str, event: Any, event_id: str, registered_handlers: dict, kwargs: dict = None
-) -> None:
-    kwargs = kwargs or {}
+
+def set_event_context(correlation_id: str, user_access: Dict[str, Any], produce_errors_to: str = "") -> None:
+    ctx = event_context.get()
+    ctx["correlation_id"] = correlation_id
+    ctx["user_access"] = user_access
+    ctx["produce_errors_to"] = (
+        produce_errors_to or os.getenv("PRODUCE_ERRORS_TO") or ctx.get("stream_name", "")
+    )
+    event_context.set(ctx)
+
+
+def set_event_context_start(event_id, event_type, stream_name, handler, dt=None):
+    ctx = event_context.get()
+    ctx["start_time"] = dt or datetime.utcnow()
+    ctx["stream_name"] = maybe_decode(stream_name)
+    ctx["event_id"] = maybe_decode(event_id)
+    ctx["event_type"] = event_type.name
+    ctx["handler"] = handler
+    event_context.set(ctx)
+
+
+def set_consumer_context(consumer_name, group_name) -> None:
+    ctx = consumer_context.get()
+    ctx["hostname"] = os.getenv("HOSTNAME") or "UNKNOWN_HOST"
+    ctx["consumer_name"] = consumer_name
+    ctx["group_name"] = group_name
+    consumer_context.set(ctx)
+
+
+def set_event_context_end(dt: Optional[datetime] = None) -> None:
+    ctx = event_context.get()
+    ctx["end_time"] = dt or datetime.utcnow()
+    event_context.set(ctx)
+
+
+def maybe_retrieve_correlation_id(event: Any) -> str:
+    return (
+        extract_attr(event, "document_id")
+        or extract_attr(event, "source_id")
+        or extract_attr(event, "payload.uuid")
+        or extract_attr(event, "payload.source_id")
+        or ""
+    )
+
+
+def ensure_event_context(event):
+    ctx = event_context.get()
+    if not ctx:
+        correlation_id = maybe_retrieve_correlation_id(event)
+        user_access = extract_attr(event, "user_access") or {}
+        set_event_context(correlation_id=correlation_id, user_access=user_access)
+
+
+def reset_event_context():
+    event_context.set({})
+
+
+def get_event_context(event=None):
+    ctx = event_context.get()
+    return ctx
+
+
+def ensure_result(result):
+    if isinstance(result, Result):
+        return result
+    if result is not None:
+        return Error(value=result)
+    return Ok()
+
+
+def digest_event(stream_name: str, event: Any, event_id: str, registered_handlers: dict) -> None:
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
         causations_context.set(event.update_causations({stream_name: event_id}))
+        reset_event_context()
+        ensure_event_context(event)
+        set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
         try:
-            handler(stream_name, event, event_id, **kwargs)
-        except Exception as exc:
-            # Produce error event
-            print(8*"*"+"PRODUCING ERROR EVENT"+8*"*")
-            produce_error_event(stream_name,event,event_id,handler,exc)
-            raise exc from None
-    else:
-        print("Ignoring event: {}".format(event.event_type))
+            result = ensure_result(handler(stream_name, event, event_id))
+            set_event_context_end()
+            if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
+                produce_from_result(result)
 
-def produce_error_event(stream_name, event, event_id, handler, exc):
-    import traceback as tb
+        except Exception as exc:
+            set_event_context_end()
+            dead_letter_id = produce_one("dead-letter", event, maxlen=1000)
+            produce_from_result(Error(value=exc), stream_name=stream_name, dead_letter_id=dead_letter_id)
+            if not enabled_by_env("PREVENT_CONSUMER_CRASH"):
+                raise exc from None
+    else:
+        if enabled_by_env("PRINT_IGNORED_EVENTS"):
+            print("Ignoring event: {}".format(event.event_type))
+
+
+def produce_from_result(result, stream_name=None, dead_letter_id=None):
+    if result.is_ok():
+        produce_log_event(result, is_user_log=False)
+    else:
+        produce_error_event(stream_name, dead_letter_id, result)
+
+
+def produce_user_log_event(result: Result) -> None:
+    if not isinstance(result, (Ok, Error)):
+        raise ValueError("Parameter 'result' must be a Result [Ok or Error].")
+    produce_log_event(result, is_user_log=True)
+
+
+def produce_log_event(
+    result: Result, stream_name: str = "logs", is_user_log: bool = True, make_uuid=uuid_factory("LOG")
+):
     from aim_common.events.base_event import BaseEvent
     from aim_common.events.event_type import EventType
 
+    log_event = BaseEvent(event_type=EventType.LOGGING_EVENT)
+    log_event.data = {
+        "uuid": make_uuid(),
+        "result": result.as_dict(),
+        "event_context": get_event_context(),
+        "consumer_context": consumer_context.get(),
+        "is_user_log": bool(is_user_log),
+    }
+    produce_one(stream_name, log_event, maxlen=1000)
+
+
+def produce_error_event(
+    stream_name: str, dead_letter_id: str, result: Error, make_uuid=uuid_factory("LOG"), is_user_log=False
+):
+    from aim_common.events.base_event import BaseEvent
+    from aim_common.events.event_type import EventType
+
+    ctx = get_event_context()
+    produce_errors_to = ctx["produce_errors_to"] or os.getenv("PRODUCE_ERRORS_TO", stream_name)
+    print(8 * "*" + f"PRODUCING ERROR EVENT TO '{produce_errors_to}'" + 8 * "*")
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
-        "event_bytes": event_to_bytes(event),
-        "event_id": event_id,
-        "event_type": event.event_type,
-        "handler": handler.__name__,
-        "hostname": os.getenv("HOSTNAME") or "UNKNOWN_HOST",
-        "traceback": "".join(tb.format_exception(None, exc, exc.__traceback__)),
+        "uuid": make_uuid(),
+        "result": result.err(),
+        "event_context": ctx,
+        "consumer_context": consumer_context.get(),
+        "dead_letter_id": maybe_decode(dead_letter_id),
+        "exception": repr(result.exc()),
+        "traceback": result.traceback(),
+        "is_user_log": bool(is_user_log),
     }
-    produce_one(stream_name,error_event)
+    produce_one(produce_errors_to, error_event)
+    produce_one("logs", error_event)
 
-def make_consumer_name(uuid, group_name):
-    if uuid:
-        return group_name + "_consumer-" + str(uuid)
-    return uuid_factory(group_name + "-consumer")()
+
+def maybe_decode(string):
+    if isinstance(string, (bytes, bytearray)):
+        string = string.decode("utf-8")
+    return string
+
+
+def make_consumer_name(consumer_id, group_name):
+    if consumer_id:
+        return str(consumer_id)
+    return uuid_factory(os.getenv("HOSTNAME", group_name))()
 
 
 def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries):
@@ -131,16 +256,16 @@ def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_ret
     return discarded
 
 
-def discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries):
+def discard_from_pel_by_stream(group_name, consumer_name, streams, max_retries):
     discarded_list = []
     for stream_name in streams:
-        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name,max_retries)
+        discarded = discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries)
         discarded_list.append((stream_name, discarded))
     return list(filter(is_really_not_empty, discarded_list))
 
 
-def process_pending_messages(broker, group_name, consumer_name, streams, handlers,max_retries):
-    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams,max_retries)
+def process_pending_messages(broker, group_name, consumer_name, streams, handlers, max_retries):
+    discarded = discard_from_pel_by_stream(group_name, consumer_name, streams, max_retries)
     if discarded:
         print(f"Discarded unprocessable events: {discarded} for {consumer_name}")
 
@@ -168,7 +293,9 @@ def new_messages_by_stream(broker, group_name, consumer_name, streams, start_fro
     return messages_by_stream
 
 
-def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
+def start_redis_consumer(
+    consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1
+):
     broker = RedisStream.get_broker()
     maybe_create_consumer_groups(broker, consumer_group_config)
 
@@ -177,7 +304,8 @@ def start_redis_consumer(consumer_group_config, registered_handlers, start_from=
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
 
-    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers,max_retries)
+    set_consumer_context(consumer_name, group_name)
+    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers, max_retries)
     while True:
         for message in new_messages_by_stream(
             broker, group_name, consumer_name, streams, start_from, batch_size
