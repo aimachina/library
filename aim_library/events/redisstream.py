@@ -135,6 +135,10 @@ def ensure_event_context(event):
         set_event_context(correlation_id=correlation_id, user_access=user_access)
 
 
+def reset_event_context():
+    event_context.set({})
+
+
 def get_event_context(event=None):
     ctx = event_context.get()
     return ctx
@@ -153,9 +157,10 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         handler = registered_handlers[event.event_type]
         correlations_context.set(event.update_correlations({stream_name: event_id}))
         causations_context.set(event.update_causations({stream_name: event_id}))
+        reset_event_context()
         ensure_event_context(event)
+        set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
         try:
-            set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
             result = ensure_result(handler(stream_name, event, event_id))
             set_event_context_end()
             if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
