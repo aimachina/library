@@ -32,7 +32,14 @@ class ItemValue:
                 text_len=len(text),
             )
         return Line(uuid="-1")
-
+        
+    def get_lines(self, lines):
+        for line in lines:
+            text = line.get("text")
+            yield  Line(uuid= line.get("uuid"),text=text,
+                            text_clean=clean_string(text, charset=self.ALLOWED_CHARS_ALPHANUM).upper(),
+                            text_len=len(text))
+                            
     def format_quantity(self,value: str, number_zero: int):
         if not value:
             return
