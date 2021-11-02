@@ -34,7 +34,7 @@ def get_matches_coincidences(user_access,repo,search_coincidence):
         return coincidence
     
     for fields in search_coincidence["fields_to_compare"]:
-        report_field = str(report.get(fields["source"],""))
+        report_field = str(reduce(dict.get,fields["source"],report))
         
         ticket_field = str(reduce(dict.get,fields["target"],document))
         coincidence += get_porcentage_coincidence(report_field,ticket_field)
