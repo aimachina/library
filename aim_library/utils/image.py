@@ -70,3 +70,10 @@ def thumbnail(image):
     new_h = int(ratio * new_w)
 
     return image.resize((new_w, new_h))
+
+def adjust_image_quality(img, quality):
+    if quality == 100:
+        return img
+    buffer = io.BytesIO()
+    img.save(buffer, "JPEG", quality=quality)
+    return Image.open(buffer)
