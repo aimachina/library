@@ -122,6 +122,9 @@ class MongoDAO:
             {"$push":push}
         )
 
+    def update_many(self, filters, set_data,upsert=False):
+        return self._collection.update_many(filters,{"$set": set_data},upsert=upsert)
+
     def drop_indexes(self):
         return self._collection.drop_indexes()
         
