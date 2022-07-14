@@ -1,12 +1,12 @@
 from http.client import responses
 import traceback as tb
-from typing import TypeVar, Any, Protocol, Dict, Tuple
+from typing import runtime_checkable, TypeVar, Any, Protocol, Dict, Tuple
 
 T = TypeVar("T", covariant=True)
 E = TypeVar("E", covariant=True)
 U = TypeVar("U")
 
-
+@runtime_checkable
 class Result(Protocol):
     def is_ok(self) -> bool:
         ...
