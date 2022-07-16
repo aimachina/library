@@ -6,6 +6,7 @@ import re
 from itertools import groupby
 
 from fuzzywuzzy import process
+from fuzzysearch import find_near_matches
 from math import ceil
 
 
@@ -137,8 +138,7 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False):
         v_string = ''
         for r in result:
             (x_string, initial_v) = r
-            min_distance , _ , _ = inners_levenshtein(query, x_string)
-            if min_distance <= inners_thres:
+            if find_near_matches(query, x_string, max_l_dist=inners_thres):
                 if initial_v > score:
                     score = initial_v
                     v_string = x_string
