@@ -5,6 +5,10 @@ import numpy as np
 import re
 from itertools import groupby
 
+from fuzzywuzzy import process
+from math import ceil
+
+
 ALLOWED_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
 )
@@ -102,6 +106,45 @@ def levenshtein_distance(seq1, seq2):
                 matrix[x, y] = min(matrix[x - 1, y] + 1, matrix[x - 1, y - 1] + 1, matrix[x, y - 1] + 1)
     return matrix[size_x - 1, size_y - 1]
 
+def inners_levenshtein(query, candidate):
+    diff = len(candidate) - len(query)
+    length_score = abs(len(query.strip()) - len(candidate.strip()))
+    if diff < 0:
+        candidate += abs(diff) * " "
+        diff = 0
+    if diff == 0:
+        edit_distance = levenshtein_distance(query.upper(), candidate.upper())
+        return edit_distance, length_score, 0
+    l = len(query)
+    distances = []
+    for i in range(diff):
+        distances.append(levenshtein_distance(query.upper(), candidate[i : l + i].upper()))
+    min_distance = min(distances)
+    min_index = distances.index(min_distance)
+    return min_distance, length_score, min_index
+
+def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False):
+    if ignore_case:
+        query = query.lower()
+        candidate = candidate.lower()
+    if not (' ' in query):
+        result = process.extractBests(query, candidate.split(), score_cutoff=threshold)
+    else:
+        result = process.extractBests(query, (candidate,), score_cutoff=threshold)
+    inners_thres = ceil(((100 - threshold)/100)*len(query))
+    if result:
+        score = 0
+        v_string = ''
+        for r in result:
+            (x_string, initial_v) = r
+            min_distance , _ , _ = inners_levenshtein(query, x_string)
+            if min_distance <= inners_thres:
+                if initial_v > score:
+                    score = initial_v
+                    v_string = x_string
+    else:
+        (v_string, score) = '',0
+    return float(score), v_string
 
 class SpanishSoundex():
 
