@@ -8,7 +8,7 @@ from itertools import groupby
 from fuzzywuzzy import process
 from fuzzysearch import find_near_matches
 from math import ceil
-
+import unidecode
 
 ALLOWED_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
@@ -124,10 +124,13 @@ def inners_levenshtein(query, candidate):
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
 
-def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False):
+def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_special=False):
     if ignore_case:
         query = query.lower()
         candidate = candidate.lower()
+    if ignore_special:
+        query = unidecode.unidecode(query)
+        candidate = unidecode.unidecode(candidate)
     if not (' ' in query):
         result = process.extractBests(query, candidate.split(), score_cutoff=threshold)
     else:
