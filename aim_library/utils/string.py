@@ -4,7 +4,6 @@ import unicodedata
 import numpy as np
 import re
 from itertools import groupby
-import Levenshtein
 from fuzzywuzzy import process
 from fuzzysearch import find_near_matches
 from math import ceil
@@ -115,12 +114,12 @@ def inners_levenshtein(query, candidate):
         candidate += abs(diff) * " "
         diff = 0
     if diff == 0:
-        edit_distance = Levenshtein.distance(query.upper(), candidate.upper())
+        edit_distance = levenshtein_distance(query.upper(), candidate.upper())
         return edit_distance, length_score, 0
     l = len(query)
     distances = []
     for i in range(diff):
-        distances.append(Levenshtein.distance(query.upper(), candidate[i: l + i].upper()))
+        distances.append(levenshtein_distance(query.upper(), candidate[i: l + i].upper()))
     min_distance = min(distances)
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
