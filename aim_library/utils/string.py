@@ -107,6 +107,7 @@ def levenshtein_distance(seq1, seq2):
                 matrix[x, y] = min(matrix[x - 1, y] + 1, matrix[x - 1, y - 1] + 1, matrix[x, y - 1] + 1)
     return matrix[size_x - 1, size_y - 1]
 
+
 def inners_levenshtein(query, candidate):
     diff = len(candidate) - len(query)
     length_score = abs(len(query.strip()) - len(candidate.strip()))
@@ -119,23 +120,32 @@ def inners_levenshtein(query, candidate):
     l = len(query)
     distances = []
     for i in range(diff):
-        distances.append(levenshtein_distance(query.upper(), candidate[i : l + i].upper()))
+        distances.append(levenshtein_distance(query.upper(), candidate[i: l + i].upper()))
     min_distance = min(distances)
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
 
-def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_special=False):
+
+def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_special=False, use_lenvs=True):
+    # compa_lvth = int(round((90 - threshold)/10))
     if ignore_case:
         query = query.lower()
         candidate = candidate.lower()
     if ignore_special:
         query = unidecode.unidecode(query)
         candidate = unidecode.unidecode(candidate)
+    if use_lenvs:
+        xquery = query.replace(" ", "")
+        xcandidate = candidate.replace(" ", "")
+        mind, _, mscr = inners_levenshtein(xquery, xcandidate)
+        newscore = 100 - mind * 10
+        if newscore >= threshold:
+            return newscore, xcandidate[mscr:]
     if not (' ' in query):
         result = process.extractBests(query, candidate.split(), score_cutoff=threshold)
     else:
         result = process.extractBests(query, (candidate,), score_cutoff=threshold)
-    inners_thres = ceil(((100 - threshold)/100)*len(query))
+    inners_thres = ceil(((100 - threshold) / 100) * len(query))
     if result:
         score = 0
         v_string = ''
@@ -146,18 +156,19 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_spe
                     score = initial_v
                     v_string = x_string
     else:
-        (v_string, score) = '',0
+        (v_string, score) = '', 0
     return float(score), v_string
+
 
 class SpanishSoundex():
 
-    def __init__(self, equivalent_letter_code_dict = None):
+    def __init__(self, equivalent_letter_code_dict=None):
         self.translations = equivalent_letter_code_dict or \
                             dict(zip('A|E|I|O|U|Y|W|H|B|P|F|V|C|S|K|G|J|Q|X|Z|D|T|L|M|N|Ñ|R|LL|RR'.split('|'), \
-                                    '00000500102174788744335666959'))
+                                     '00000500102174788744335666959'))
         self.pad = lambda code: '{}0000'.format(code)[:4]
 
-    def phonetics(self, word:str) -> str:
+    def phonetics(self, word: str) -> str:
         """
         Return the Soundex equivalent code of the word.
         """
@@ -169,9 +180,9 @@ class SpanishSoundex():
 
         word = word.upper()
         word = re.sub(r'[^A-Z]', r'', word)
-       
-        #Isolate repeated special words: LL, RR
-        separate_LL_RR = re.split(r'(LL|RR)',word)
+
+        # Isolate repeated special words: LL, RR
+        separate_LL_RR = re.split(r'(LL|RR)', word)
         pre_code = ''
         for group_letters in separate_LL_RR:
             if 'LL' in group_letters:
@@ -184,11 +195,10 @@ class SpanishSoundex():
         code = self._squeeze(pre_code).replace('0', '')
         return self.pad(code)
 
-
-    def _squeeze(self, word:str) -> str:
+    def _squeeze(self, word: str) -> str:
         """Squeeze the given sequence by dropping consecutive duplicates."""
         return ''.join(x[0] for x in groupby(word))
-    
-    def sounds_like(self, word1:str, word2:str) -> bool:
+
+    def sounds_like(self, word1: str, word2: str) -> bool:
         """Compare the phonetic representations of 2 words."""
         return self.phonetics(word1) == self.phonetics(word2)        
