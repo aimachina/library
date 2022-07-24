@@ -9,6 +9,7 @@ from fuzzywuzzy import process
 from fuzzysearch import find_near_matches
 from math import ceil
 import unidecode
+from polyleven import levenshtein
 
 ALLOWED_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
@@ -108,19 +109,19 @@ def levenshtein_distance(seq1, seq2):
     return matrix[size_x - 1, size_y - 1]
 
 
-def inners_levenshtein(query, candidate):
+def inners_levenshtein(query, candidate, threshold = 2):
     diff = len(candidate) - len(query)
     length_score = abs(len(query.strip()) - len(candidate.strip()))
     if diff < 0:
         candidate += abs(diff) * " "
         diff = 0
     if diff == 0:
-        edit_distance = Levenshtein.distance(query.upper(), candidate.upper())
+        edit_distance = levenshtein(query.upper(), candidate.upper(), threshold)
         return edit_distance, length_score, 0
     l = len(query)
     distances = []
     for i in range(diff):
-        distances.append(Levenshtein.distance(query.upper(), candidate[i: l + i].upper()))
+        distances.append(levenshtein(query.upper(), candidate[i: l + i].upper()), threshold)
     min_distance = min(distances)
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
@@ -137,7 +138,10 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_spe
     if use_lenvs:
         xquery = query.replace(" ", "")
         xcandidate = candidate.replace(" ", "")
-        mind, _, mscr = inners_levenshtein(xquery, xcandidate)
+        #adjust +- 10
+        newthreshold = threshold if threshold < 90 else 90
+        compa_lvth = round(round((90 - newthreshold) / 10))
+        mind, _, mscr = inners_levenshtein(xquery, xcandidate, compa_lvth)
         newscore = 100 - mind * 10
         if newscore >= threshold:
             return newscore, xcandidate[mscr:]
