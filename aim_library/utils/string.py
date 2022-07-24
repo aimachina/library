@@ -121,7 +121,7 @@ def inners_levenshtein(query, candidate, threshold = 2):
     l = len(query)
     distances = []
     for i in range(diff):
-        distances.append(levenshtein(query.upper(), candidate[i: l + i].upper()), threshold)
+        distances.append(levenshtein(query.upper(), candidate[i: l + i].upper(), threshold))
     min_distance = min(distances)
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
