@@ -121,7 +121,7 @@ def inners_levenshtein(query, candidate, threshold=2):
     distances = []
     for i in range(diff):
         #print(candidate[i : l + i].upper())
-        distances.append(levenshtein(query.upper(), candidate[i : l + i].decode('utf-8','ignore').upper(), threshold))
+        distances.append(levenshtein(query.upper(), candidate[i : l + i].upper(), threshold))
     min_distance = min(distances)
     min_index = distances.index(min_distance)
     return min_distance, length_score, min_index
@@ -138,9 +138,9 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_spe
     if use_lenvs:
         xquery = query.replace(" ", "")
         xcandidate = candidate.replace(" ", "")
-        newthreshold = threshold if threshold < 90 else 90
-        compa_lvth = round(round((90 - newthreshold) / 10))
-        mind, _, mscr = inners_levenshtein(xquery, xcandidate, threshold=compa_lvth)
+        newthreshold = threshold if threshold < 100 else 100
+        compa_lvth = round(round((100 - newthreshold) / 10))
+        mind, _, mscr = inners_levenshtein(xquery, xcandidate, threshold=compa_lvth + 1)
         newscore = 100 - mind * 10
         if newscore >= threshold:
             return newscore, xcandidate[mscr:]
