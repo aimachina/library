@@ -108,7 +108,7 @@ def levenshtein_distance(seq1, seq2):
     return matrix[size_x - 1, size_y - 1]
 
 
-def inners_levenshtein(query, candidate, threshold=2):
+def inners_levenshtein(query, candidate, threshold=5):
     diff = len(candidate) - len(query)
     length_score = abs(len(query.strip()) - len(candidate.strip()))
     if diff < 0:
