@@ -294,8 +294,9 @@ def new_messages_by_stream(broker, group_name, consumer_name, streams, start_fro
 
 
 def start_redis_consumer(
-    consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1
+    consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=2
 ):
+    max_retries = int(ConfigManager.get_config_value("consumers", "max_retries")) or max_retries
     broker = RedisStream.get_broker()
     maybe_create_consumer_groups(broker, consumer_group_config)
 
