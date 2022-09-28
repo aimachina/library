@@ -157,7 +157,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         ensure_event_context(event)
         set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
         produce_log_event(
-            Ok(value=f"Handler f{handler.__name__} started processing event of type f{event.event_type}", code=201)
+            Ok(value=f"Handler f{handler.__name__} started processing event of type f{event.event_type}", code=102)
         )
         try:
             result = ensure_result(handler(stream_name, event, event_id))
