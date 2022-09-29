@@ -148,6 +148,18 @@ def ensure_result(result):
     return Ok()
 
 
+def produce_handler_started(handler, event):
+    msg = f"Handler {handler.__name__} started processing "
+    msg += f"event of type {event.event_type.name} "
+    msg += f"for document {maybe_retrieve_correlation_id(event)}"
+    produce_log_event(
+        Ok(
+            value=msg,
+            code=102,
+        )
+    )
+
+
 def digest_event(stream_name: str, event: Any, event_id: str, registered_handlers: dict) -> None:
     if event.event_type in registered_handlers:
         handler = registered_handlers[event.event_type]
@@ -156,9 +168,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         reset_event_context()
         ensure_event_context(event)
         set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
-        produce_log_event(
-            Ok(value=f"Handler f{handler.__name__} started processing event of type f{event.event_type}", code=102)
-        )
+        produce_handler_started(handler, event)
         try:
             result = ensure_result(handler(stream_name, event, event_id))
             set_event_context_end()
