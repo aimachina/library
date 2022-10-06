@@ -33,6 +33,9 @@ def produce_one(name: str, event: Any, maxlen: int = None) -> str:
     event.causations = causations_context.get()
     value = event_to_bytes(event)
     id_ = broker.xadd(name, {key: value}, maxlen=maxlen)  # type: ignore
+    h = producer_context.get()
+    h.append({"stream": name, "event_type": event.event_type, "redis_id": id_})
+    producer_context.set(h)
     return id_
 
 
@@ -79,6 +82,8 @@ causations_context: ContextVar[list] = ContextVar("correlations_context", defaul
 
 consumer_context: ContextVar[dict] = ContextVar("consumer_context", default={})
 event_context: ContextVar[dict] = ContextVar("event_context", default={})
+
+producer_context: ContextVar[list] = ContextVar("producer_context", default=[])
 
 
 def set_event_context(correlation_id: str, user_access: Dict[str, Any], produce_errors_to: str = "") -> None:
@@ -213,6 +218,8 @@ def produce_log_event(
         "consumer_context": consumer_context.get(),
         "is_user_log": bool(is_user_log),
     }
+    if not bool(is_user_log):
+        log_event.data["events_produced"] = producer_context.get()
     produce_one(stream_name, log_event, maxlen=1000)
 
 
@@ -237,6 +244,8 @@ def produce_error_event(
         "is_user_log": bool(is_user_log),
     }
     produce_one(produce_errors_to, error_event)
+    if not bool(is_user_log):
+        error_event.data["events_produced"] = producer_context.get()
     produce_one("logs", error_event)
 
 
