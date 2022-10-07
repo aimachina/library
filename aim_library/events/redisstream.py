@@ -34,7 +34,7 @@ def produce_one(name: str, event: Any, maxlen: int = None) -> str:
     value = event_to_bytes(event)
     id_ = broker.xadd(name, {key: value}, maxlen=maxlen)  # type: ignore
     h = producer_context.get()
-    h.append({"stream": name, "event_type": event.event_type, "redis_id": id_})
+    h.append({"stream": name, "event_type": event.event_type.name, "redis_id": id_})
     producer_context.set(h)
     return id_
 
