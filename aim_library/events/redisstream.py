@@ -166,29 +166,29 @@ def produce_handler_started(handler, event):
 
 
 def digest_event(stream_name: str, event: Any, event_id: str, registered_handlers: dict) -> None:
-    if event.event_type in registered_handlers:
-        handler = registered_handlers[event.event_type]
-        correlations_context.set(event.update_correlations({stream_name: event_id}))
-        causations_context.set(event.update_causations({stream_name: event_id}))
-        reset_event_context()
-        ensure_event_context(event)
-        set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
-        produce_handler_started(handler, event)
-        try:
-            result = ensure_result(handler(stream_name, event, event_id))
-            set_event_context_end()
-            if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
-                produce_from_result(result)
-
-        except Exception as exc:
-            set_event_context_end()
-            dead_letter_id = produce_one("dead-letter", event, maxlen=1000)
-            produce_from_result(Error(value=exc), stream_name=stream_name, dead_letter_id=dead_letter_id)
-            if not enabled_by_env("PREVENT_CONSUMER_CRASH"):
-                raise exc from None
-    else:
+    if event.event_type not in registered_handlers:
         if enabled_by_env("PRINT_IGNORED_EVENTS"):
             print("Ignoring event: {}".format(event.event_type))
+
+    handler = registered_handlers[event.event_type]
+    correlations_context.set(event.update_correlations({stream_name: event_id}))
+    causations_context.set(event.update_causations({stream_name: event_id}))
+    reset_event_context()
+    ensure_event_context(event)
+    set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
+    produce_handler_started(handler, event)
+    try:
+        result = ensure_result(handler(stream_name, event, event_id))
+        set_event_context_end()
+        if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
+            produce_from_result(result)
+
+    except Exception as exc:
+        set_event_context_end()
+        dead_letter_id = produce_one("dead-letter", event, maxlen=1000)
+        produce_from_result(Error(value=exc), stream_name=stream_name, dead_letter_id=dead_letter_id)
+        if not enabled_by_env("PREVENT_CONSUMER_CRASH"):
+            raise exc from None
 
 
 def produce_from_result(result, stream_name=None, dead_letter_id=None):
@@ -220,7 +220,7 @@ def produce_log_event(
     }
     if not bool(is_user_log):
         log_event.data["events_produced"] = producer_context.get()
-    produce_one(stream_name, log_event, maxlen=1000)
+    produce_one(stream_name, log_event, maxlen=100000)
 
 
 def produce_error_event(
