@@ -1,5 +1,6 @@
 from time import sleep
 from os import environ
+from threading import Thread
 from aim_status_grpc.status_client import GRPCStatusClient
 
 GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents_status.ticketai')
@@ -10,7 +11,7 @@ grpc_status_client = GRPCStatusClient(
     port = GRPC_STATUS_SERVER_PORT
 )
 
-def set_document_status(
+def _send_document_status(
     document_id: str,
     status: str,
     description: str,
@@ -33,3 +34,14 @@ def set_document_status(
         print(f'ERROR: Document status update failed for {document_id}')
         print(f'INFO: Current config: (server_name={GRPC_STATUS_SERVER_HOST}, port={GRPC_STATUS_SERVER_PORT})')
         print(f'INFO: To change it set GRPC_STATUS_SERVER_HOST and GRPC_STATUS_SERVER_PORT environment variables')
+    
+
+def set_document_status(
+    document_id: str,
+    status: str,
+    description: str,
+    organization: str,
+    meta: str
+):
+    thread = Thread(target=_send_document_status, args=(document_id, status, description, organization, meta))
+    thread.start()
