@@ -1,6 +1,6 @@
 from time import sleep
 from os import environ
-from threading import Thread
+from multiprocessing import Process
 from aim_status_grpc.status_client import GRPCStatusClient
 
 GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents_status.ticketai')
@@ -43,5 +43,5 @@ def set_document_status(
     organization: str,
     meta: str
 ):
-    thread = Thread(target=_send_document_status, args=(document_id, status, description, organization, meta))
-    thread.start()
+    proc = Process(target=_send_document_status, args=(document_id, status, description, organization, meta,))
+    proc.start()
