@@ -9,6 +9,7 @@ from aim_library.utils.common import enabled_by_env, extract_attr, uuid_factory
 from aim_library.utils.configmanager import ConfigManager
 from aim_library.utils.result import Result, Ok, Error
 
+from aim_library.utils.status import set_document_status
 
 class RedisStream:
     __broker = None
@@ -229,6 +230,13 @@ def produce_error_event(
     }
     produce_one(produce_errors_to, error_event)
     produce_one("logs", error_event)
+    set_document_status(
+        document_id=ctx['correlation_id'],
+        status='EXCEPTION',
+        description=repr(result.exc()),
+        organization=ctx['user_access']['organization_id'],
+        meta=''
+    )
 
 
 def maybe_decode(string):
