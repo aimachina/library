@@ -3,7 +3,7 @@ from os import environ
 from multiprocessing import Process
 from aim_status_grpc.status_client import GRPCStatusClient
 
-GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents_status.ticketai')
+GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents-status.ticketai')
 GRPC_STATUS_SERVER_PORT = environ.get('GRPC_STATUS_SERVER_PORT', '50052')
 
 grpc_status_client = GRPCStatusClient(
