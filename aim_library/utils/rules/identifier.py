@@ -3,53 +3,48 @@ import re
 from aim_library.utils.rules.model import Line
 
 
-class Identifier():
+class Identifier:
     """
     Identifier of desire items of a chedraui sale ticket and return its value or None
     """
+
     def __init__(self):
         super().__init__()
 
-    def get_line_by_label(self,line:Line,sorted_lines:list,label:str,item_value):
+    def get_line_by_label(self, line: Line, sorted_lines: list, label: str, item_value):
         if not label:
-            label=""
+            label = ""
         while line.uuid != "-1":
-            if (
-                label in line.text
-                or self.is_exit_label(
-                        line.text_clean, label
-                    )
-                ):
+            if label in line.text or self.is_exit_label(line.text_clean, label):
                 break
-            line = item_value.get_next_line(sorted_lines)  
-        return line         
+            line = item_value.get_next_line(sorted_lines)
+        return line
 
-    def get_line_by_re(self,line:Line,sorted_lines:list,regular_exp:str,item_value):
+    def get_line_by_re(self, line: Line, sorted_lines: list, regular_exp: str, item_value):
         while line.uuid != "-1":
-            if re.findall(regular_exp,line.text):
+            if re.findall(regular_exp, line.text):
                 break
-            line = item_value.get_next_line(sorted_lines)  
-        return line         
+            line = item_value.get_next_line(sorted_lines)
+        return line
 
-    
     def _remove_spaces_and_to_lower(self, line: str) -> str:
         return line.replace(" ", "").lower()
-
 
     def is_similar_word(self, word_in_doc: str, first_desire_word: str) -> bool:
         """
         Check if s is first_desire_word or something similar
         """
-        #first_letters = s[: len(first_desire_word)]
+        # first_letters = s[: len(first_desire_word)]
         word_in_doc = self.clean_line(word_in_doc)
-        
-        if(not word_in_doc or not self._is_valid_line(word_in_doc)):
+
+        if not word_in_doc or not self._is_valid_line(word_in_doc):
             return False
-        
-        
-        return self._is_it_similar(word_in_doc, first_desire_word) or self._is_it_phonetic_similar(word_in_doc, first_desire_word)
-    
-    def is_exit_label(self, line: str,label:str) -> str:
+
+        return self._is_it_similar(word_in_doc, first_desire_word) or self._is_it_phonetic_similar(
+            word_in_doc, first_desire_word
+        )
+
+    def is_exit_label(self, line: str, label: str) -> str:
         """
         Search word like as first word
         """
@@ -60,6 +55,7 @@ class Identifier():
             return None
 
         return clean_line
+
     """
     Rules that could be use in many documents
     """
@@ -103,7 +99,7 @@ class Identifier():
 
     def clean_line(self, line: str, charset: str = None) -> str:
         """
-        Remove not desire chars from a string
+        Remove not desire chars from a s
         """
         return clean_string(
             line.upper(),
