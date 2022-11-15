@@ -12,6 +12,7 @@ from aim_library.utils.result import Result, Ok, Error
 
 from aim_library.utils.status import set_document_status
 
+
 class RedisStream:
     __broker = None
 
@@ -221,6 +222,8 @@ def produce_from_result(result, stream_name=None, dead_letter_id=None):
 
 
 def produce_user_log_event(result: Result) -> None:
+    if not enabled_by_env("ENABLED_BY_ENV"):
+        return
     if not isinstance(result, (Ok, Error)):
         raise ValueError("Parameter 'result' must be a Result [Ok or Error].")
     produce_log_event(result, is_user_log=True)
@@ -266,11 +269,11 @@ def produce_error_event(
     produce_one(produce_errors_to, error_event)
     produce_one("logs", error_event)
     set_document_status(
-        document_id=ctx['correlation_id'],
-        status='EXCEPTION',
+        document_id=ctx["correlation_id"],
+        status="EXCEPTION",
         description=repr(result.exc()),
-        organization=ctx['user_access']['organization_id'],
-        meta=''
+        organization=ctx["user_access"]["organization_id"],
+        meta="",
     )
 
 
@@ -354,15 +357,15 @@ def consume_batches_forever(*, consumer_group_config, consumer_id, registered_ha
     start_id = "0-0"
     handler_names = [k.name for k in registered_handlers.keys()]
     while True:
-        messages = new_messages_by_stream(
-            broker=broker,
-            group_name=group_name,
-            consumer_name=consumer_name,
-            streams=streams,
-            start_from=start_from,
-            batch_size=batch_size,
-        )
-        for stream, stream_messages in messages:
+        for stream in streams:
+            stream_messages = new_messages_by_stream(
+                broker=broker,
+                group_name=group_name,
+                consumer_name=consumer_name,
+                streams=[stream],
+                start_from=start_from,
+                batch_size=batch_size,
+            )
             start_id, claimed_messages, _ = broker.xautoclaim(
                 stream, group_name, consumer_name, retry_after, start_id=start_id
             )
@@ -372,7 +375,8 @@ def consume_batches_forever(*, consumer_group_config, consumer_id, registered_ha
             accepted_messages = decode_batch(batch=accepted_bytes)
             ctx = copy_context()
             ctx.run(digest_batch, stream, accepted_messages, accepted_ids, registered_handlers)
-            broker.xack(stream, group_name, *accepted_ids)
+            if broker.xack(stream, group_name, *accepted_ids) > 0:
+                break
 
 
 def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
