@@ -37,7 +37,7 @@ def produce_one(name: str, event: Any, maxlen: int = None) -> str:
     value = event_to_bytes(event)
     id_ = broker.xadd(name, {key: value}, maxlen=maxlen)  # type: ignore
     history = produced_events.get()
-    history.append({"stream": name, "event_type": event.event_type.name, "redis_id": id_})
+    history.append({"stream": name, "event_type": event.event_type.name, "redis_id": maybe_decode(id_)})
     produced_events.set(history)
     return id_
 
