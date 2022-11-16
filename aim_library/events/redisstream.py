@@ -31,7 +31,7 @@ class RedisStream:
 
 def produce_one(name: str, event: Any, maxlen: int = None) -> str:
     broker = RedisStream.get_broker()
-    key = event.event_type.name + str(event.uuid)
+    key = f"{event.event_type.name}:{event.uuid}"
     event.correlations = correlations_context.get()
     event.causations = causations_context.get()
     value = event_to_bytes(event)
@@ -72,7 +72,7 @@ def maybe_create_consumer_groups(broker, consumer_groups_config):
 
 def is_accepted_by(message, registered_handlers):
     _, event_dict = message
-    k = next(iter(event_dict))
+    k = maybe_decode(next(iter(event_dict)))
     parts = k.split(":")
     if len(parts) == 1:
         return True  # Bypass filter, no type in key, event needs to be decoded
@@ -82,22 +82,26 @@ def is_accepted_by(message, registered_handlers):
 
 def split_by_handler(messages, registered_handlers):
     is_accepted = partial(is_accepted_by, registered_handlers=registered_handlers)
-    accepted = filter(is_accepted, messages)
-    rejected = filter(lambda m: not is_accepted(m), messages)
+    accepted = list(filter(is_accepted, messages))
+    rejected = list(filter(lambda m: not is_accepted(m), messages))
+    if rejected and enabled_by_env("PRINT_IGNORED_EVENTS"):
+        print(f"Rejected: {len(rejected)}")
     return accepted, rejected
 
 
 def handle_rejected(*, stream, group_name, rejected):
+    if not rejected:
+        return
     broker = RedisStream.get_broker()
     ids, _ = zip(*rejected)
-    broker.xack(stream, group_name, ids)
+    broker.xack(stream, group_name, *ids)
 
 
 def decode_item(item):
-    stream_name, events = item
+    events = item
     event_ids, event_dicts = zip(*events)
     events = tuple(bytes_to_event(event_bytes) for event_dict in event_dicts for event_bytes in event_dict.values())
-    return stream_name, event_ids, events
+    return event_ids, events
 
 
 correlations_context: ContextVar[dict] = ContextVar("correlations_context", default={})
@@ -178,7 +182,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
     if event.event_type not in registered_handlers:
         if enabled_by_env("PRINT_IGNORED_EVENTS"):
             print("Ignoring event: {}".format(event.event_type))
-            return
+        return
     handler = registered_handlers[event.event_type]
     correlations_context.set(event.update_correlations({stream_name: event_id}))
     causations_context.set(event.update_causations({stream_name: event_id}))
@@ -210,6 +214,7 @@ def digest_batch(stream_name, batch, registered_handlers):
             produce_from_result(result)
     except Exception as exc:
         set_event_context_end()
+        produce_from_result(Error(value=exc), stream_name=stream_name, dead_letter_id="")
         if not enabled_by_env("PREVENT_CONSUMER_CRASH"):
             raise exc from None
 
@@ -253,7 +258,7 @@ def produce_error_event(
     from aim_common.events.event_type import EventType
 
     ctx = get_event_context()
-    produce_errors_to = ctx["produce_errors_to"] or os.getenv("PRODUCE_ERRORS_TO", stream_name)
+    produce_errors_to = ctx.get("produce_errors_to") or os.getenv("PRODUCE_ERRORS_TO", stream_name)
     print(8 * "*" + f"PRODUCING ERROR EVENT TO '{produce_errors_to}'" + 8 * "*")
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
@@ -269,10 +274,10 @@ def produce_error_event(
     produce_one(produce_errors_to, error_event)
     produce_one("logs", error_event)
     set_document_status(
-        document_id=ctx["correlation_id"],
+        document_id=ctx.get("correlation_id", "NOT_FOUND"),
         status="EXCEPTION",
         description=repr(result.exc()),
-        organization=ctx["user_access"]["organization_id"],
+        organization=ctx.get("user_access", {}).get("organization_id", "NOT_FOUND"),
         meta="",
     )
 
@@ -289,11 +294,11 @@ def make_consumer_name(consumer_id, group_name):
     return uuid_factory(os.getenv("HOSTNAME", group_name))()
 
 
-def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries):
+def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries, batch_size=10):
     r = RedisStream.get_broker()
     start_from = "-"
     discarded = []
-    while messages := r.xpending_range(stream_name, group_name, start_from, "+", 10, consumer_name):
+    while messages := r.xpending_range(stream_name, group_name, start_from, "+", batch_size, consumer_name):
         for message in messages:
             if message["times_delivered"] > max_retries:
                 r.xack(stream_name, group_name, message["message_id"])
@@ -316,8 +321,11 @@ def process_pending_messages(broker, group_name, consumer_name, streams, handler
         print(f"Discarded unprocessable events: {discarded} for {consumer_name}")
 
     while messages_by_stream := pending_messages_by_stream(broker, group_name, consumer_name, streams, 1):
-        for message in messages_by_stream:
-            decode_and_digest(broker, message, group_name, handlers)
+        messages_dict = dict(messages_by_stream)
+        for stream in streams:
+            messages = messages_dict.get(bytes(stream, "utf-8"), [])
+            for message in messages:
+                decode_and_digest(broker, stream, message, group_name, handlers)
 
 
 def is_really_not_empty(item):
@@ -333,7 +341,7 @@ def pending_messages_by_stream(broker, group_name, consumer_name, streams, batch
 
 def new_messages_by_stream(broker, group_name, consumer_name, streams, start_from, batch_size):
     streams_dict = {s: start_from for s in streams}
-    messages_by_stream = broker.xreadgroup(group_name, consumer_name, streams_dict, count=batch_size, block=1000)
+    messages_by_stream = broker.xreadgroup(group_name, consumer_name, streams_dict, count=batch_size, block=100)
     return messages_by_stream
 
 
@@ -352,31 +360,46 @@ def consume_batches_forever(*, consumer_group_config, consumer_id, registered_ha
     consumer_name = make_consumer_name(consumer_id, group_name)
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
-    retry_after = consumer_group_config.get("retry_after", 60000)
+    retry_after = consumer_group_config.get("retry_after", 300000)
     set_consumer_context(consumer_name, group_name)
-    start_id = "0-0"
     handler_names = [k.name for k in registered_handlers.keys()]
     while True:
         for stream in streams:
-            stream_messages = new_messages_by_stream(
-                broker=broker,
-                group_name=group_name,
-                consumer_name=consumer_name,
-                streams=[stream],
-                start_from=start_from,
-                batch_size=batch_size,
+            discard_max_retries_from_pel(stream, group_name, consumer_name, max_retries, batch_size * 2)
+            stream_messages_dict = dict(
+                new_messages_by_stream(
+                    broker=broker,
+                    group_name=group_name,
+                    consumer_name=consumer_name,
+                    streams=[stream],
+                    start_from=start_from,
+                    batch_size=batch_size,
+                )
             )
+            stream_messages = stream_messages_dict.get(bytes(stream, "utf-8"), [])
             start_id, claimed_messages, _ = broker.xautoclaim(
-                stream, group_name, consumer_name, retry_after, start_id=start_id
+                stream, group_name, consumer_name, retry_after, start_id=0, count=batch_size
             )
-            accepted, rejected = split_by_handler(claimed_messages + stream_messages, registered_handlers)
-            handle_rejected(stream=stream, group_name=group_name, rejected=rejected)
-            accepted_ids, accepted_bytes = zip(*accepted)
-            accepted_messages = decode_batch(batch=accepted_bytes)
-            ctx = copy_context()
-            ctx.run(digest_batch, stream, accepted_messages, accepted_ids, registered_handlers)
-            if broker.xack(stream, group_name, *accepted_ids) > 0:
+            all_messages = claimed_messages + stream_messages
+            if not all_messages:
+                continue
+            accepted, rejected = split_by_handler(all_messages, handler_names)
+            if rejected:
+                handle_rejected(stream=stream, group_name=group_name, rejected=rejected)
+            if accepted:
+                handle_accepted(
+                    stream=stream, group_name=group_name, registered_handlers=registered_handlers, accepted=accepted
+                )
                 break
+
+
+def handle_accepted(stream, group_name, registered_handlers, accepted):
+    broker = RedisStream.get_broker()
+    accepted_ids, accepted_bytes = zip(*accepted)
+    accepted_messages = decode_batch(batch=accepted_bytes)
+    ctx = copy_context()
+    ctx.run(digest_batch, stream, accepted_messages, registered_handlers)
+    broker.xack(stream, group_name, *accepted_ids)
 
 
 def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
@@ -407,20 +430,30 @@ def consume_single_messages_forever(
     consumer_name = make_consumer_name(consumer_id, group_name)
     batch_size = consumer_group_config["batch_size"]
     streams = consumer_group_config["streams"]
+    retry_after = consumer_group_config.get("retry_after", 300000)
     set_consumer_context(consumer_name, group_name)
-    process_pending_messages(broker, group_name, consumer_name, streams, registered_handlers, max_retries)
     while True:
         for stream in streams:
-            priority_message = new_messages_by_stream(
-                broker, group_name, consumer_name, [stream], start_from, batch_size
+            discarded = discard_max_retries_from_pel(stream, group_name, consumer_name, max_retries, batch_size * 2)
+            if discarded:
+                print(f"discarded {discarded}")
+            start_id, claimed_message, _ = broker.xautoclaim(
+                stream, group_name, consumer_name, min_idle_time=retry_after, start_id=0, count=batch_size
             )
+            if claimed_message:
+                decode_and_digest(broker, stream, claimed_message, group_name, registered_handlers)
+                break
+            priority_message_dict = dict(
+                new_messages_by_stream(broker, group_name, consumer_name, [stream], start_from, batch_size)
+            )
+            priority_message = priority_message_dict.get(bytes(stream, "utf-8"))
             if priority_message:
-                decode_and_digest(broker, priority_message, group_name, registered_handlers)
+                decode_and_digest(broker, stream, priority_message, group_name, registered_handlers)
                 break
 
 
-def decode_and_digest(broker, message, group_name, handlers):
-    stream_name, event_ids, events = decode_item(message)
+def decode_and_digest(broker, stream_name, message, group_name, handlers):
+    event_ids, events = decode_item(message)
     for event_id, event in zip(event_ids, events):
         ctx = copy_context()
         ctx.run(digest_event, stream_name, event, event_id, handlers)

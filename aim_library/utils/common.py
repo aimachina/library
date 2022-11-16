@@ -106,7 +106,7 @@ def batch_generator(generator, batch_size=16):
             break
 
 
-def enabled_by_env(var, truthy_vals=("1", 1, True, "true", "enabled")):
-    value = os.getenv(var, "False")
+def enabled_by_env(var, truthy_vals=("1", 1, True, "true", "enabled"), default=False):
+    value = os.getenv(var, default)
     value = value.lower() if isinstance(value, str) else value
     return value in truthy_vals
