@@ -422,7 +422,10 @@ def handle_accepted(stream, group_name, registered_handlers, accepted):
     broker.xack(stream, group_name, *accepted_ids)
 
 
-def start_redis_consumer(consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=1):
+def start_redis_consumer(
+    consumer_group_config, registered_handlers, start_from=">", consumer_id=None, max_retries=None
+):
+    max_retries = max_retries or consumer_group_config.get("max_retries", 1)
     if consumer_group_config["batch_size"] > 1:
         consume_batches_forever(
             consumer_group_config=consumer_group_config,
