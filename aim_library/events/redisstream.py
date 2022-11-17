@@ -59,6 +59,18 @@ def consume_one(name):
     return bytes_to_event(bytes_)
 
 
+def produce_handler_started(handler, event):
+    msg = f"Handler {handler.__name__} started processing "
+    msg += f"event of type {event.event_type.name} "
+    msg += f"for document {maybe_retrieve_correlation_id(event)}"
+    produce_log_event(
+        Ok(
+            value=msg,
+            code=102,
+        )
+    )
+
+
 def maybe_create_consumer_groups(broker, consumer_groups_config):
     streams = consumer_groups_config["streams"]
     group_name = consumer_groups_config["name"]
@@ -196,6 +208,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
     ensure_event_context(event)
     set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
     try:
+        produce_handler_started(handler, event)
         result = ensure_result(handler(stream_name, event, event_id))
         set_event_context_end()
         if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
