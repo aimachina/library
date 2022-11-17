@@ -67,7 +67,8 @@ def produce_handler_started(handler, event):
         Ok(
             value=msg,
             code=102,
-        )
+        ),
+        is_user_log=False,
     )
 
 
@@ -211,7 +212,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         produce_handler_started(handler, event)
         result = ensure_result(handler(stream_name, event, event_id))
         set_event_context_end()
-        if enabled_by_env("LOG_ALL_EVENTS") and stream_name not in ["logs"]:
+        if "logs" not in stream_name:
             produce_from_result(result)
 
     except Exception as exc:
@@ -229,7 +230,7 @@ def digest_batch(stream_name, batch, registered_handlers):
     try:
         result = ensure_result(handler(stream_name, batch, None))
         set_event_context_end()
-        if enabled_by_env("LOG_ALL_EVENTS"):
+        if "logs" not in stream_name:
             produce_from_result(result)
     except Exception as exc:
         set_event_context_end()
@@ -246,7 +247,7 @@ def produce_from_result(result, stream_name=None, dead_letter_id=None):
 
 
 def produce_user_log_event(result: Result) -> None:
-    if not enabled_by_env("ENABLED_BY_ENV"):
+    if not enabled_by_env("ENABLE_USER_LOGS", default=True):
         return
     if not isinstance(result, (Ok, Error)):
         raise ValueError("Parameter 'result' must be a Result [Ok or Error].")
