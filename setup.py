@@ -18,5 +18,7 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires=[
         "aim-status-grpc",
+        "redis==4.3.4",
+        "hiredis==2.0.0"
     ],
 )
