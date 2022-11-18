@@ -10,14 +10,12 @@ from math import ceil
 import unidecode
 from polyleven import levenshtein
 
-ALLOWED_CHARS = (
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
-)
+ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890 ,./<>?:;\\ `~!@#$%^&*()[]{}_+-=|¥\n"
 
 
 def remove_accents(input_str, fmt="NFKD"):
     nkfd_form = unicodedata.normalize(fmt, input_str)
-    return u"".join([c for c in nkfd_form if not unicodedata.combining(c)])
+    return "".join([c for c in nkfd_form if not unicodedata.combining(c)])
 
 
 def clean_string(s, charset=ALLOWED_CHARS):
@@ -120,7 +118,7 @@ def inners_levenshtein(query, candidate, threshold=5):
     l = len(query)
     distances = []
     for i in range(diff):
-        #print(candidate[i : l + i].upper())
+        # print(candidate[i : l + i].upper())
         distances.append(levenshtein(query.upper(), candidate[i : l + i].upper(), threshold))
     min_distance = min(distances)
     min_index = distances.index(min_distance)
@@ -144,14 +142,14 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_spe
         newscore = 100 - mind * 10
         if newscore >= threshold:
             return newscore, xcandidate[mscr:]
-    if not (' ' in query):
+    if not (" " in query):
         result = process.extractBests(query, candidate.split(), score_cutoff=threshold)
     else:
         result = process.extractBests(query, (candidate,), score_cutoff=threshold)
     inners_thres = ceil(((100 - threshold) / 100) * len(query))
     if result:
         score = 0
-        v_string = ''
+        v_string = ""
         for r in result:
             (x_string, initial_v) = r
             if find_near_matches(query, x_string, max_l_dist=inners_thres):
@@ -159,48 +157,50 @@ def eval_fuzzywuzzy(query, candidate, threshold=0, ignore_case=False, ignore_spe
                     score = initial_v
                     v_string = x_string
     else:
-        (v_string, score) = '', 0
+        (v_string, score) = "", 0
     return float(score), v_string
 
 
-class SpanishSoundex():
-
+class SpanishSoundex:
     def __init__(self, equivalent_letter_code_dict=None):
-        self.translations = equivalent_letter_code_dict or \
-                            dict(zip('A|E|I|O|U|Y|W|H|B|P|F|V|C|S|K|G|J|Q|X|Z|D|T|L|M|N|Ñ|R|LL|RR'.split('|'), \
-                                     '00000500102174788744335666959'))
-        self.pad = lambda code: '{}0000'.format(code)[:4]
+        self.translations = equivalent_letter_code_dict or dict(
+            zip(
+                "A|E|I|O|U|Y|W|H|B|P|F|V|C|S|K|G|J|Q|X|Z|D|T|L|M|N|Ñ|R|LL|RR".split("|"),
+                "00000500102174788744335666959",
+            )
+        )
+        self.pad = lambda code: "{}0000".format(code)[:4]
 
     def phonetics(self, word: str) -> str:
         """
         Return the Soundex equivalent code of the word.
         """
         if not isinstance(word, str):
-            raise ValueError('Expected a unicode string!')
+            raise ValueError("Expected a unicode s!")
 
         if not len(word):
-            raise ValueError('The given string is empty.')
+            raise ValueError("The given s is empty.")
 
         word = word.upper()
-        word = re.sub(r'[^A-Z]', r'', word)
+        word = re.sub(r"[^A-Z]", r"", word)
 
         # Isolate repeated special words: LL, RR
-        separate_LL_RR = re.split(r'(LL|RR)', word)
-        pre_code = ''
+        separate_LL_RR = re.split(r"(LL|RR)", word)
+        pre_code = ""
         for group_letters in separate_LL_RR:
-            if 'LL' in group_letters:
-                pre_code = pre_code + self.translations['LL']
-            elif 'RR' in group_letters:
-                pre_code = pre_code + self.translations['RR']
+            if "LL" in group_letters:
+                pre_code = pre_code + self.translations["LL"]
+            elif "RR" in group_letters:
+                pre_code = pre_code + self.translations["RR"]
             else:
-                pre_code = pre_code + ''.join(self.translations[char] for char in group_letters)
+                pre_code = pre_code + "".join(self.translations[char] for char in group_letters)
 
-        code = self._squeeze(pre_code).replace('0', '')
+        code = self._squeeze(pre_code).replace("0", "")
         return self.pad(code)
 
     def _squeeze(self, word: str) -> str:
         """Squeeze the given sequence by dropping consecutive duplicates."""
-        return ''.join(x[0] for x in groupby(word))
+        return "".join(x[0] for x in groupby(word))
 
     def sounds_like(self, word1: str, word2: str) -> bool:
         """Compare the phonetic representations of 2 words."""

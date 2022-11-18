@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="aim-library",
-    version="0.0.29",
+    version="0.1.0",
     author="AIMachina",
     author_email="ticketai@outlook.com",
     description="AIMachina library",
@@ -17,6 +17,6 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        'aim-status-grpc',
+        "aim-status-grpc",
     ],
 )
