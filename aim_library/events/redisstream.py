@@ -213,7 +213,7 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
         result = ensure_result(handler(stream_name, event, event_id))
         set_event_context_end()
         if "logs" not in stream_name:
-            produce_from_result(result)
+            produce_from_result(result, stream_name=stream_name, dead_letter_id="")
 
     except Exception as exc:
         set_event_context_end()
