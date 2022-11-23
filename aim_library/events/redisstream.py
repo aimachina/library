@@ -239,7 +239,7 @@ def digest_batch(stream_name, batch, registered_handlers):
             raise exc from None
 
 
-def produce_from_result(result, stream_name=None, dead_letter_id=None):
+def produce_from_result(result, stream_name=None, dead_letter_id=""):
     if result.is_ok():
         produce_log_event(result, is_user_log=False)
     else:
@@ -287,7 +287,7 @@ def produce_error_event(
         "result": result.err(),
         "event_context": ctx,
         "consumer_context": consumer_context.get(),
-        "dead_letter_id": maybe_decode(dead_letter_id),
+        "dead_letter_id": maybe_decode(dead_letter_id) or "",
         "exception": repr(result.exc()),
         "traceback": result.traceback(),
         "is_user_log": bool(is_user_log),
