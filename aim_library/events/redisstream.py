@@ -206,8 +206,8 @@ def digest_event(stream_name: str, event: Any, event_id: str, registered_handler
     correlations_context.set(event.update_correlations({stream_name: event_id}))
     causations_context.set(event.update_causations({stream_name: event_id}))
     reset_event_context()
-    set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
     ensure_event_context(event)
+    set_event_context_start(event_id, event.event_type, stream_name, handler.__name__)
     try:
         produce_handler_started(handler, event)
         result = ensure_result(handler(stream_name, event, event_id))
@@ -280,6 +280,7 @@ def produce_error_event(
 
     ctx = get_event_context()
     produce_errors_to = ctx.get("produce_errors_to") or os.getenv("PRODUCE_ERRORS_TO", stream_name)
+    produce_errors_to = produce_errors_to or stream_name
     print(8 * "*" + f"PRODUCING ERROR EVENT TO '{produce_errors_to}'" + 8 * "*")
     error_event = BaseEvent(event_type=EventType.ERROR_PROCESSING_EVENT)
     error_event.data = {
