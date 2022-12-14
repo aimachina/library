@@ -92,3 +92,14 @@ class S3:
 
     def get_bucket(self):
         return self.__resource
+
+    def get_presigned_url(self, key, filename):
+        return self.__client.generate_presigned_url(
+                    ClientMethod='get_object', 
+                    Params={
+                        'Bucket': self._get_bucket().name,
+                        'Key': key,
+                        'ResponseContentDisposition': f'attachment; filename={filename}'
+                    },
+                    ExpiresIn=60
+                )
