@@ -29,6 +29,7 @@ def _send_document_status(
             )
             break
         except Exception as e:
+            print(e)
             sleep(1)
     else:
         print(f'ERROR: Document status update failed for {document_id}')
