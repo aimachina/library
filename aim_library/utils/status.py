@@ -29,12 +29,14 @@ def _send_document_status(
             )
             break
         except Exception as e:
-            print(e)
+            if environ.get('ENABLE_STATUS_LOGS', False):
+                print(e)
             sleep(1)
     else:
-        print(f'ERROR: Document status update failed for {document_id}')
-        print(f'INFO: Current config: (server_name={GRPC_STATUS_SERVER_HOST}, port={GRPC_STATUS_SERVER_PORT})')
-        print(f'INFO: To change it set GRPC_STATUS_SERVER_HOST and GRPC_STATUS_SERVER_PORT environment variables')
+        if environ.get('ENABLE_STATUS_LOGS', False):
+            print(f'ERROR: Document status update failed for {document_id}')
+            print(f'INFO: Current config: (server_name={GRPC_STATUS_SERVER_HOST}, port={GRPC_STATUS_SERVER_PORT})')
+            print(f'INFO: To change it set GRPC_STATUS_SERVER_HOST and GRPC_STATUS_SERVER_PORT environment variables')
     
 
 def set_document_status(
