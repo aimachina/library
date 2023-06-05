@@ -1,13 +1,11 @@
-from re import compile
+import os
 from json import dumps, loads
 from requests import post, get
 from flask import Response, request
 from aim_library.utils.configmanager import ConfigManager
 from aim_library.utils.rediscache import make_redis
 
-api_conf = ConfigManager.get_config_value('api')
-API_KEY = api_conf['api_key']
-API_KEY_AUTHORIZED_USER = api_conf['api_key_authorized_user']
+APIKEYS_SERVICE_URI = os.environ['APIKEYS_SERVICE_URI']
 
 conf = ConfigManager.get_config_value('ory')
 
@@ -42,9 +40,9 @@ def __userinfo(access_token):
     response = get(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/userinfo', headers=headers, verify=False)
     return response.status_code, response.json()
 
-def get_identity():
+def get_identity(sub: str):
     kratos_url = f'{KRATOS_HOST}:{KRATOS_ADMIN_PORT}'
-    url = f'{kratos_url}/identities/{API_KEY_AUTHORIZED_USER}'
+    url = f'{kratos_url}/identities/{sub}'
     response = get(url)
     if response.status_code == 200:
         return response.json()
@@ -69,8 +67,9 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             if authorization_type != 'Bearer':
                 return Response(None, status=401)
 
-            if access_token == API_KEY:
-                identity = get_identity()
+            resp = get(f'http://{APIKEYS_SERVICE_URI}/{access_token}')
+            if resp.status_code == 200:
+                identity = get_identity(resp.json()['sub'])
                 if not identity:
                     return Response(None, status=401)
                 else:
@@ -78,7 +77,12 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
                         'sub': identity['id'],
                         'branch_id': identity['traits']['branch'],
                         'organization_id': identity['traits']['organization'],
-                        'claims': identity['traits']['claims'].split(','),
+                        #
+                        # TODO: Use commented claims once updated kratos version
+                        # since claims will be changed to a comma separated list of values
+                        #
+                        # 'claims': identity['traits']['claims'].split(','),
+                        'claims': identity['traits']['claims'],
                     }
 
                     return fn(*args, user_access=user_access, **kwargs)
