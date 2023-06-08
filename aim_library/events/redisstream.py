@@ -316,6 +316,7 @@ def make_consumer_name(consumer_id, group_name):
 
 
 def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries, batch_size=10):
+    create_consumer_file(stream_name)
     r = RedisStream.get_broker()
     start_from = "-"
     discarded = []
@@ -477,6 +478,7 @@ def consume_single_messages_forever(
 
 
 def decode_and_digest(broker, stream_name, message, group_name, handlers):
+    create_consumer_file(stream_name)
     event_ids, events = decode_item(message)
     for event_id, event in zip(event_ids, events):
         ctx = copy_context()
@@ -530,3 +532,13 @@ def find_first_by(dicts, field, value):
 
 def event_from_dict(x):
     return next(iter(x.values()))
+
+def create_consumer_file(stream_name):
+    HOME = os.environ['HOME']
+    FILENAME = os.path.join(HOME, stream_name)
+
+    if os.path.exists(FILENAME):
+        return
+
+    with open(FILENAME, 'w') as f:
+        f.write('')
