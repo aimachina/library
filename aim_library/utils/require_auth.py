@@ -1,17 +1,23 @@
-from re import compile
+import os
 from json import dumps, loads
 from requests import post, get
 from flask import Response, request
 from aim_library.utils.configmanager import ConfigManager
 from aim_library.utils.rediscache import make_redis
 
+APIKEYS_SERVICE_URI = os.environ['APIKEYS_SERVICE_URI']
+
 conf = ConfigManager.get_config_value('ory')
+
 hydra_config = conf['oauth2']['hydra']
 oauth2_client = conf['oauth2']['client']
-
 HYDRA_HOST = hydra_config['host']
 HYDRA_PUBLIC_PORT = hydra_config['public_port']
 HYDRA_ADMIN_PORT = hydra_config['admin_port']
+
+kratos_config = conf['authentication']['kratos']
+KRATOS_HOST = kratos_config['host']
+KRATOS_ADMIN_PORT = kratos_config['admin_port']
 
 def __token_introspection(access_token):
     data = {
@@ -34,6 +40,14 @@ def __userinfo(access_token):
     response = get(f'{HYDRA_HOST}:{HYDRA_PUBLIC_PORT}/userinfo', headers=headers, verify=False)
     return response.status_code, response.json()
 
+def get_identity(sub: str):
+    kratos_url = f'{KRATOS_HOST}:{KRATOS_ADMIN_PORT}'
+    url = f'{kratos_url}/identities/{sub}'
+    response = get(url)
+    if response.status_code == 200:
+        return response.json()
+    return {}
+
 def __validate_scope(scopes, required_scope):
     return required_scope in scopes
 
@@ -52,6 +66,26 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
             authorization_type, access_token = auth
             if authorization_type != 'Bearer':
                 return Response(None, status=401)
+
+            resp = get(f'http://{APIKEYS_SERVICE_URI}/{access_token}')
+            if resp.status_code == 200:
+                identity = get_identity(resp.json()['sub'])
+                if not identity:
+                    return Response(None, status=401)
+                else:
+                    user_access = {
+                        'sub': identity['id'],
+                        'branch_id': identity['traits']['branch'],
+                        'organization_id': identity['traits']['organization'],
+                        #
+                        # TODO: Use commented claims once updated kratos version
+                        # since claims will be changed to a comma separated list of values
+                        #
+                        # 'claims': identity['traits']['claims'].split(','),
+                        'claims': identity['traits']['claims'],
+                    }
+
+                    return fn(*args, user_access=user_access, **kwargs)
 
             status, data =  __token_introspection(access_token)
             if status != 200:
