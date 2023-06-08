@@ -1,5 +1,6 @@
 import os
 import pickle
+from pathlib import Path
 from datetime import datetime
 from contextvars import ContextVar, copy_context
 from functools import partial
@@ -421,6 +422,7 @@ def handle_accepted(stream, group_name, registered_handlers, accepted):
     ctx = copy_context()
     ctx.run(digest_batch, stream, accepted_messages, registered_handlers)
     broker.xack(stream, group_name, *accepted_ids)
+    create_consumer_file(stream)
 
 
 def start_redis_consumer(
@@ -482,6 +484,7 @@ def decode_and_digest(broker, stream_name, message, group_name, handlers):
         ctx = copy_context()
         ctx.run(digest_event, stream_name, event, event_id, handlers)
         broker.xack(stream_name, group_name, event_id)
+    create_consumer_file(stream_name)
 
 
 def retrieve_event(stream_name, event_id):  # TODO: Handle case for retrieving batch of events
@@ -530,3 +533,12 @@ def find_first_by(dicts, field, value):
 
 def event_from_dict(x):
     return next(iter(x.values()))
+
+def create_consumer_file(stream_name):
+    HOME = os.environ['HOME']
+    FILENAME = os.path.join(HOME, stream_name)
+
+    if os.path.exists(FILENAME):
+        return
+
+    Path(FILENAME).touch()
