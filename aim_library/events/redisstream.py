@@ -1,5 +1,6 @@
 import os
 import pickle
+from pathlib import Path
 from datetime import datetime
 from contextvars import ContextVar, copy_context
 from functools import partial
@@ -540,5 +541,4 @@ def create_consumer_file(stream_name):
     if os.path.exists(FILENAME):
         return
 
-    with open(FILENAME, 'w') as f:
-        f.write('')
+    Path(FILENAME).touch()
