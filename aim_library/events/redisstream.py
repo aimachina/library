@@ -317,7 +317,6 @@ def make_consumer_name(consumer_id, group_name):
 
 
 def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_retries, batch_size=10):
-    create_consumer_file(stream_name)
     r = RedisStream.get_broker()
     start_from = "-"
     discarded = []
@@ -423,6 +422,7 @@ def handle_accepted(stream, group_name, registered_handlers, accepted):
     ctx = copy_context()
     ctx.run(digest_batch, stream, accepted_messages, registered_handlers)
     broker.xack(stream, group_name, *accepted_ids)
+    create_consumer_file(stream)
 
 
 def start_redis_consumer(
@@ -479,12 +479,12 @@ def consume_single_messages_forever(
 
 
 def decode_and_digest(broker, stream_name, message, group_name, handlers):
-    create_consumer_file(stream_name)
     event_ids, events = decode_item(message)
     for event_id, event in zip(event_ids, events):
         ctx = copy_context()
         ctx.run(digest_event, stream_name, event, event_id, handlers)
         broker.xack(stream_name, group_name, event_id)
+    create_consumer_file(stream_name)
 
 
 def retrieve_event(stream_name, event_id):  # TODO: Handle case for retrieving batch of events
