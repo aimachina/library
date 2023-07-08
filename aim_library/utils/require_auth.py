@@ -77,12 +77,7 @@ def require_auth(request, auth_type='oauth2', required_scope: str = None):
                         'sub': identity['id'],
                         'branch_id': identity['traits']['branch'],
                         'organization_id': identity['traits']['organization'],
-                        #
-                        # TODO: Use commented claims once updated kratos version
-                        # since claims will be changed to a comma separated list of values
-                        #
-                        # 'claims': identity['traits']['claims'].split(','),
-                        'claims': identity['traits']['claims'],
+                        'claims': identity['traits']['claims'].split(','),
                     }
 
                     return fn(*args, user_access=user_access, **kwargs)
