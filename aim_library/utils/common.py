@@ -6,7 +6,7 @@ from functools import wraps
 from typing import Callable
 
 
-def make_url(db_config, include_db=True):
+def make_url(db_config, include_db=True, use_tls=False):
     url = db_config["type"]
     url += "://" + db_config["user"]
     url += ":" + db_config["password"]
@@ -14,6 +14,12 @@ def make_url(db_config, include_db=True):
     url += ":" + db_config["port"]
     if include_db:
         url += "/" + db_config["db"]
+    if use_tls:
+        assert db_config.get('tlsCAFile', None)
+        url += '/?tls=true&tlsCAFile=' + db_config['tlsCAFile']
+        url += '&replicaSet=' + db_config.get('replicaSet', 'rs0')
+
+    print(f'DATABASE URL: {url}')
     return url
 
 
