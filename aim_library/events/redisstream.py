@@ -320,13 +320,19 @@ def discard_max_retries_from_pel(stream_name, group_name, consumer_name, max_ret
     r = RedisStream.get_broker()
     start_from = "-"
     discarded = []
-    while messages := r.xpending_range(stream_name, group_name, start_from, "+", batch_size, consumer_name):
-        for message in messages:
-            if message["times_delivered"] > max_retries:
-                r.xack(stream_name, group_name, message["message_id"])
-                discarded.append(message["message_id"])
-        start_from = increment_id(messages[-1]["message_id"])
-    return discarded
+    try:
+        while messages := r.xpending_range(stream_name, group_name, start_from, "+", batch_size, consumer_name):
+            for message in messages:
+                if message["times_delivered"] > max_retries:
+                    r.xack(stream_name, group_name, message["message_id"])
+                    discarded.append(message["message_id"])
+            start_from = increment_id(messages[-1]["message_id"])
+        return discarded
+    except Exception as e:
+        header = ' AN EXCEPTION OCURRED WHEN RUNNING discard_max_retries_from_pel ' 
+        print(f'{header:#^80}')
+        print(e)
+        print('#'*80)
 
 
 def discard_from_pel_by_stream(group_name, consumer_name, streams, max_retries):
