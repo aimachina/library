@@ -8,6 +8,7 @@ from aim_library.utils.common import make_url
 
 def make_db(db_config=ConfigManager.get_config_value("database", "mongo")):
     use_tls = db_config.get('use_tls', '').lower() == 'true'
-    return MongoClient(make_url(db_config, include_db=False, use_tls=use_tls), connect=False)[db_config["db"]]
+    retry_writes = db_config.get('retry_writes', '').lower() == 'true'
+    return MongoClient(make_url(db_config, include_db=False, use_tls=use_tls), connect=False, retryWrites=retry_writes)[db_config["db"]]
 
 db = make_db()
