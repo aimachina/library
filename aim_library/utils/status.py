@@ -6,11 +6,6 @@ from importlib.util import find_spec
 GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents-status.ticketai')
 GRPC_STATUS_SERVER_PORT = environ.get('GRPC_STATUS_SERVER_PORT', '50052')
 
-grpc_status_client = GRPCStatusClient(
-    server_name = GRPC_STATUS_SERVER_HOST,
-    port = GRPC_STATUS_SERVER_PORT
-)
-
 def _send_document_status(
     document_id: str,
     status: str,
@@ -23,6 +18,11 @@ def _send_document_status(
         return
     
     from aim_status_grpc.status_client import GRPCStatusClient
+
+    grpc_status_client = GRPCStatusClient(
+        server_name = GRPC_STATUS_SERVER_HOST,
+        port = GRPC_STATUS_SERVER_PORT
+    )
         
     for _ in range(3):
         try:
