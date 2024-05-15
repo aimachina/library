@@ -2,6 +2,7 @@ from time import sleep
 from os import environ
 from multiprocessing import Process
 from aim_status_grpc.status_client import GRPCStatusClient
+from importlib.util import find_spec
 
 GRPC_STATUS_SERVER_HOST = environ.get('GRPC_STATUS_SERVER_HOST', 'documents-status.ticketai')
 GRPC_STATUS_SERVER_PORT = environ.get('GRPC_STATUS_SERVER_PORT', '50052')
@@ -18,6 +19,10 @@ def _send_document_status(
     organization: str,
     meta: str
 ):
+    if not find_spec('aim-status-grpc'):
+        print(f'WARNING: Unable to send documents status updates, Missing aim-status-grpc dependency')
+        return
+        
     for _ in range(3):
         try:
             grpc_status_client.update_document_status(
