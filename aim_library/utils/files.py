@@ -30,7 +30,7 @@ def extension(filename):
 
 
 IMAGE_EXTENSIONS = {"jpg", "png", "jpeg", "heif"}
-DOCUMENT_EXTENSIONS = {"xls", "xlsx", "csv", "txt", "xlsb"}
+DOCUMENT_EXTENSIONS = {"xls", "xlsx", "csv", "txt", "xlsb", "msg", "eml", "doc", "docx", "pdf"}
 ARCHIVE_EXTENSIONS = {"zip", "rar"}
 ALLOWED_EXTENSIONS = IMAGE_EXTENSIONS.union(ARCHIVE_EXTENSIONS).union(DOCUMENT_EXTENSIONS)
 
