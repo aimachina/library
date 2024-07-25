@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 setuptools.setup(
     name="aim-library",
-    version="0.1.16",
+    version="0.1.17",
     author="AIMachina",
     author_email="ticketai@outlook.com",
     description="AIMachina library",

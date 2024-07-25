@@ -6,7 +6,12 @@ from PIL import Image
 # pylint: enable=import-error
 
 DATA_URL_PREFIX = "data:image/jpeg;base64,"
+DATA_URL_PREFIX_JPEG = "data:image/jpeg;base64,"
+DATA_URL_PREFIX_PNG = "data:image/png;base64,"
+DATA_URL_PREFIX_PDF= "data:application/pdf;base64,"
 
+def bytes_to_base64(bytes_, prefix=""):
+    return prefix + str(base64.b64encode(bytes_), "utf-8")
 
 def image_to_bytes(img):
     stream = io.BytesIO()
