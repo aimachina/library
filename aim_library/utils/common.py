@@ -18,6 +18,9 @@ def make_url(db_config, include_db=True, use_tls=False):
         assert db_config.get('tlsCAFile', None)
         url += '/?tls=true&tlsCAFile=' + db_config['tlsCAFile']
         url += '&replicaSet=' + db_config.get('replicaSet', 'rs0')
+        url += '&directConnection=true'
+    else:
+        url += '/?directConnection=true'
 
     print(f'DATABASE URL: {url}')
     return url
